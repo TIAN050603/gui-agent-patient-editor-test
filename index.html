@@ -293,6 +293,107 @@
       font-size: 14px;
     }
 
+    .custom-agent-card {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-soft);
+      overflow: hidden;
+    }
+
+    .custom-agent-card .agent-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .custom-agent-card h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      color: #0f172a;
+    }
+
+    .custom-agent-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .agent-chat-history {
+      height: 320px;
+      overflow-y: auto;
+      padding: 14px;
+      background: #eef4fb;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .chat-message {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .chat-message.user {
+      margin-left: 18px;
+      background: #dbeafe;
+      border-color: #bfdbfe;
+      color: #1e3a8a;
+    }
+
+    .chat-message.agent {
+      margin-right: 18px;
+      background: #ffffff;
+      border-color: var(--line);
+      color: #334155;
+    }
+
+    .chat-message.plan {
+      background: var(--warning-bg);
+      border-color: #fed7aa;
+      color: #7c2d12;
+    }
+
+    .chat-message.success {
+      background: var(--success-bg);
+      border-color: #86efac;
+      color: var(--success);
+    }
+
+    .chat-message.error {
+      background: var(--danger-bg);
+      border-color: #fda29b;
+      color: var(--danger);
+    }
+
+    .agent-controls {
+      padding: 14px;
+      background: #ffffff;
+    }
+
+    .agent-controls textarea {
+      min-height: 112px;
+      margin-bottom: 12px;
+    }
+
+    .agent-example-buttons {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .agent-example-buttons button {
+      width: 100%;
+      min-height: 36px;
+      padding: 7px 10px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
     .result-card {
       margin-top: 20px;
     }
@@ -550,6 +651,43 @@
               <p>请选择 P005 赵磊，将手机号修改为 123，然后点击保存，观察页面是否提示手机号格式错误。</p>
             </article>
           </div>
+
+          <section id="customAgentSection" class="custom-agent-card" data-testid="custom-agent-section" aria-labelledby="customAgentTitle">
+            <div class="agent-header">
+              <h3 id="customAgentTitle">自定义任务对话区</h3>
+              <p>你可以输入自然语言任务，例如：“请选择 P001 张伟，将手机号修改为 13912345678，然后点击保存。”</p>
+            </div>
+            <div
+              id="agentChatHistory"
+              class="agent-chat-history"
+              data-testid="agent-chat-history"
+              aria-label="自定义 Agent 对话历史窗口"
+              role="log"
+              aria-live="polite"
+            ></div>
+            <div class="agent-controls">
+              <label for="agentCommandInput">任务输入框</label>
+              <textarea
+                id="agentCommandInput"
+                name="agentCommandInput"
+                data-testid="agent-command-input"
+                aria-label="自定义 Agent 任务输入框"
+                placeholder="请输入任务，例如：请选择 P004 陈敏，将就诊科室修改为 呼吸内科，将就诊类型修改为 复诊，将主诉/症状描述修改为 咳嗽、胸闷两天，然后点击保存。"
+              ></textarea>
+              <div class="actions">
+                <button type="button" id="sendAgentCommandButton" name="sendAgentCommandButton" class="btn-primary" data-testid="send-agent-command-button" aria-label="发送任务">发送任务</button>
+                <button type="button" id="clearAgentChatButton" name="clearAgentChatButton" class="btn-secondary" data-testid="clear-agent-chat-button" aria-label="清空对话">清空对话</button>
+                <button type="button" id="fillExampleTaskButton" name="fillExampleTaskButton" class="btn-secondary" data-testid="fill-example-task-button" aria-label="填入示例任务">填入示例任务</button>
+              </div>
+              <div class="agent-example-buttons" aria-label="快捷示例任务按钮">
+                <button type="button" class="btn-secondary agent-example-button" name="agentExampleTask1Button" data-testid="agent-example-task-1-button" aria-label="填入示例任务 1" data-example="请选择 P001 张伟，将手机号修改为 13912345678，然后点击保存。">示例 1：修改 P001 手机号并保存</button>
+                <button type="button" class="btn-secondary agent-example-button" name="agentExampleTask2Button" data-testid="agent-example-task-2-button" aria-label="填入示例任务 2" data-example="请选择 P002 李娜，将就诊科室修改为 消化内科，然后点击保存。">示例 2：修改 P002 就诊科室并保存</button>
+                <button type="button" class="btn-secondary agent-example-button" name="agentExampleTask3Button" data-testid="agent-example-task-3-button" aria-label="填入示例任务 3" data-example="请选择 P003 王强，将就诊类型修改为 复诊，然后点击保存。">示例 3：修改 P003 就诊类型并保存</button>
+                <button type="button" class="btn-secondary agent-example-button" name="agentExampleTask4Button" data-testid="agent-example-task-4-button" aria-label="填入示例任务 4" data-example="请选择 P004 陈敏，将就诊科室修改为 呼吸内科，将就诊类型修改为 复诊，将主诉/症状描述修改为 咳嗽、胸闷两天，然后点击保存。">示例 4：多字段联合编辑并保存</button>
+                <button type="button" class="btn-secondary agent-example-button" name="agentExampleTask5Button" data-testid="agent-example-task-5-button" aria-label="填入示例任务 5" data-example="请选择 P005 赵磊，将手机号修改为 123，然后点击保存，观察页面是否提示手机号格式错误。">示例 5：触发手机号错误校验</button>
+              </div>
+            </div>
+          </section>
         </div>
       </aside>
     </div>
@@ -1014,12 +1152,30 @@
       remark: document.getElementById("remarkTextarea"),
       errorMessage: document.getElementById("errorMessage"),
       successMessage: document.getElementById("successMessage"),
-      jsonPreview: document.getElementById("jsonPreview")
+      jsonPreview: document.getElementById("jsonPreview"),
+      agentChatHistory: document.getElementById("agentChatHistory"),
+      agentCommandInput: document.getElementById("agentCommandInput")
     };
 
     document.getElementById("saveButton").addEventListener("click", saveCurrentPatient);
     document.getElementById("resetButton").addEventListener("click", resetCurrentPatient);
     document.getElementById("clearButton").addEventListener("click", clearForm);
+    document.getElementById("sendAgentCommandButton").addEventListener("click", function () {
+      executeAgentCommand(fields.agentCommandInput.value);
+    });
+    document.getElementById("clearAgentChatButton").addEventListener("click", function () {
+      fields.agentChatHistory.innerHTML = "";
+    });
+    document.getElementById("fillExampleTaskButton").addEventListener("click", function () {
+      fields.agentCommandInput.value = "请选择 P004 陈敏，将就诊科室修改为 呼吸内科，将就诊类型修改为 复诊，将主诉/症状描述修改为 咳嗽、胸闷两天，然后点击保存。";
+      fields.agentCommandInput.focus();
+    });
+    document.querySelectorAll(".agent-example-button").forEach(function (button) {
+      button.addEventListener("click", function () {
+        fields.agentCommandInput.value = button.dataset.example || "";
+        fields.agentCommandInput.focus();
+      });
+    });
     fields.patientSelect.addEventListener("change", function () {
       currentPatientId = fields.patientSelect.value;
       loadPatientToForm(getCurrentPatient());
@@ -1207,6 +1363,364 @@
       setVisitType("");
       fields.jsonPreview.textContent = "{}";
       fields.selectedPatientHint.textContent = currentPatientId ? "当前就诊人：" + currentPatientId + "，表单已清空。" : "表单已清空。";
+    }
+
+    function executeAgentCommand(commandText) {
+      const command = (commandText || "").trim();
+      if (!command) {
+        appendChatMessage("agent", "请输入任务内容后再发送。", "error");
+        return;
+      }
+
+      appendChatMessage("user", command, "user");
+      appendChatMessage("agent", "已收到任务，正在解析……", "agent");
+
+      const plan = parseAgentCommand(command);
+      if (!plan.success) {
+        appendChatMessage("agent", plan.error, "error");
+        return;
+      }
+
+      appendChatMessage("agent", formatAgentPlan(plan), "plan");
+      const result = applyAgentPlan(plan);
+      appendChatMessage("agent", result.message, result.success ? "success" : "error");
+    }
+
+    function parseAgentCommand(commandText) {
+      const patient = selectPatientFromCommand(commandText);
+      if (!patient) {
+        return {
+          success: false,
+          error: "没有识别到要选择的就诊人，请输入 patientId 或姓名。"
+        };
+      }
+
+      const updates = parseFieldUpdates(commandText);
+      const shouldSave = /保存|点击保存|然后保存|提交/.test(commandText);
+
+      if (updates.error) {
+        return {
+          success: false,
+          error: updates.error
+        };
+      }
+
+      if (updates.items.length === 0) {
+        return {
+          success: false,
+          error: "没有识别到要修改的字段。"
+        };
+      }
+
+      return {
+        success: true,
+        patient: patient,
+        updates: updates.items,
+        shouldSave: shouldSave
+      };
+    }
+
+    function applyAgentPlan(plan) {
+      const logs = [];
+      selectPatientInForm(plan.patient.patientId);
+      logs.push("已选择就诊人 " + plan.patient.patientId + " " + plan.patient.name + "。");
+
+      for (const update of plan.updates) {
+        const fieldResult = updateFormField(update.fieldKey, update.value);
+        if (!fieldResult.success) {
+          return {
+            success: false,
+            message: "执行结果：\n" + logs.concat(fieldResult.message).join("\n")
+          };
+        }
+        logs.push("已将" + update.label + "修改为 " + fieldResult.displayValue + "。");
+      }
+
+      if (plan.shouldSave) {
+        document.getElementById("saveButton").click();
+        logs.push("已点击保存。");
+        if (fields.errorMessage.classList.contains("show")) {
+          logs.push("保存失败：" + fields.errorMessage.textContent);
+          return {
+            success: false,
+            message: "执行结果：\n" + logs.join("\n")
+          };
+        }
+        logs.push("任务执行完成。");
+        return {
+          success: true,
+          message: "执行结果：\n" + logs.join("\n")
+        };
+      }
+
+      logs.push("已完成表单修改，但尚未保存。");
+      return {
+        success: true,
+        message: "执行结果：\n" + logs.join("\n")
+      };
+    }
+
+    function appendChatMessage(role, message, type) {
+      const messageEl = document.createElement("div");
+      messageEl.className = "chat-message " + (type || role || "agent");
+      messageEl.setAttribute("data-testid", "agent-chat-message-" + (type || role || "agent"));
+      messageEl.textContent = (role === "user" ? "用户：\n" : "Agent：\n") + message;
+      fields.agentChatHistory.appendChild(messageEl);
+      fields.agentChatHistory.scrollTop = fields.agentChatHistory.scrollHeight;
+    }
+
+    function selectPatientFromCommand(commandText) {
+      const idMatch = commandText.match(/P\d{3}/i);
+      if (idMatch) {
+        const patientId = idMatch[0].toUpperCase();
+        return patients.find(function (patient) {
+          return patient.patientId === patientId;
+        });
+      }
+
+      return patients.find(function (patient) {
+        return commandText.includes(patient.name);
+      });
+    }
+
+    function selectPatientInForm(patientId) {
+      fields.patientSelect.value = patientId;
+      fields.patientSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function parseFieldUpdates(commandText) {
+      const updates = [];
+      const errors = [];
+      const fieldConfigs = getAgentFieldConfigs();
+      const normalizedSegments = commandText
+        .replace(/。/g, "，")
+        .split(/[，,；;]/)
+        .map(function (part) {
+          return part.trim();
+        })
+        .filter(Boolean);
+
+      normalizedSegments.forEach(function (segment) {
+        const checkboxUpdate = parseAllergyCommand(segment);
+        if (checkboxUpdate) {
+          updates.push(checkboxUpdate);
+          return;
+        }
+
+        const fieldMatch = segment.match(/(?:将|把)(.+?)(?:修改为|改为|改成|设置为)(.+)$/);
+        if (!fieldMatch) {
+          return;
+        }
+
+        const fieldText = fieldMatch[1].trim();
+        const rawValue = cleanAgentValue(fieldMatch[2]);
+        const config = findFieldConfig(fieldText, fieldConfigs);
+
+        if (!config) {
+          errors.push("没有识别到字段：" + fieldText + "。");
+          return;
+        }
+
+        if (!rawValue && config.fieldKey !== "hasAllergy") {
+          errors.push(config.label + "缺少要修改的值。");
+          return;
+        }
+
+        const optionValue = resolveAgentFieldValue(config, rawValue);
+        if (optionValue === null) {
+          errors.push(config.label + "的字段值不在可选范围内：" + rawValue + "。");
+          return;
+        }
+
+        updates.push({
+          fieldKey: config.fieldKey,
+          label: config.label,
+          value: optionValue
+        });
+      });
+
+      return {
+        items: mergeAgentUpdates(updates),
+        error: errors.length > 0 ? errors.join(" ") : ""
+      };
+    }
+
+    function parseAllergyCommand(segment) {
+      if (/取消.*过敏史|无过敏史|没有过敏史|设置为无过敏史/.test(segment)) {
+        return {
+          fieldKey: "hasAllergy",
+          label: "是否有过敏史",
+          value: false
+        };
+      }
+
+      if (/勾选.*过敏史|有过敏史|设置为有过敏史/.test(segment) && !/说明|修改为|改为|改成/.test(segment)) {
+        return {
+          fieldKey: "hasAllergy",
+          label: "是否有过敏史",
+          value: true
+        };
+      }
+
+      return null;
+    }
+
+    function cleanAgentValue(value) {
+      return (value || "")
+        .replace(/然后点击保存.*/g, "")
+        .replace(/点击保存.*/g, "")
+        .replace(/然后保存.*/g, "")
+        .replace(/并保存.*/g, "")
+        .replace(/提交.*/g, "")
+        .trim();
+    }
+
+    function getAgentFieldConfigs() {
+      return [
+        { fieldKey: "emergencyPhone", label: "紧急联系人电话", aliases: ["紧急联系人电话", "紧急电话"] },
+        { fieldKey: "emergencyContact", label: "紧急联系人", aliases: ["紧急联系人"] },
+        { fieldKey: "allergyNote", label: "过敏史说明", aliases: ["过敏史说明", "过敏说明", "过敏备注"] },
+        { fieldKey: "medicalHistory", label: "既往病史", aliases: ["既往病史", "病史"] },
+        { fieldKey: "symptoms", label: "主诉/症状描述", aliases: ["主诉/症状描述", "主诉", "症状描述", "症状"] },
+        { fieldKey: "insuranceType", label: "医保类型", aliases: ["医保类型", "医保"], options: ["城镇职工医保", "城乡居民医保", "商业保险", "自费", "其他"] },
+        { fieldKey: "department", label: "就诊科室", aliases: ["就诊科室", "科室"], options: ["呼吸内科", "消化内科", "心血管内科", "神经内科", "骨科", "皮肤科", "儿科", "眼科", "耳鼻喉科", "急诊科"] },
+        { fieldKey: "visitType", label: "就诊类型", aliases: ["就诊类型"], options: ["初诊", "复诊", "急诊"] },
+        { fieldKey: "idNumber", label: "证件号码", aliases: ["证件号码", "身份证号", "证件号"] },
+        { fieldKey: "idType", label: "证件类型", aliases: ["证件类型"], options: ["身份证", "护照", "港澳通行证", "其他"] },
+        { fieldKey: "birthDate", label: "出生日期", aliases: ["出生日期", "生日"] },
+        { fieldKey: "hasAllergy", label: "是否有过敏史", aliases: ["是否有过敏史", "过敏史", "过敏"], options: ["有", "无"] },
+        { fieldKey: "phone", label: "手机号", aliases: ["手机号", "手机", "联系电话"] },
+        { fieldKey: "address", label: "地址", aliases: ["居住地址", "地址"] },
+        { fieldKey: "remark", label: "备注", aliases: ["备注", "说明"] },
+        { fieldKey: "gender", label: "性别", aliases: ["性别"], options: ["男", "女", "其他"] },
+        { fieldKey: "age", label: "年龄", aliases: ["年龄"] },
+        { fieldKey: "name", label: "姓名", aliases: ["姓名", "名字"] }
+      ];
+    }
+
+    function findFieldConfig(fieldText, fieldConfigs) {
+      const normalizedField = normalizeAgentText(fieldText);
+      return fieldConfigs.find(function (config) {
+        return config.aliases.some(function (alias) {
+          return normalizedField.includes(normalizeAgentText(alias));
+        });
+      });
+    }
+
+    function resolveAgentFieldValue(config, value) {
+      if (config.fieldKey === "hasAllergy") {
+        if (/无|没有|取消|false|否/.test(value)) {
+          return false;
+        }
+        if (/有|勾选|true|是/.test(value)) {
+          return true;
+        }
+        return null;
+      }
+
+      if (!config.options) {
+        return value;
+      }
+
+      const normalizedValue = normalizeAgentText(value);
+      const option = config.options.find(function (item) {
+        return normalizeAgentText(item) === normalizedValue || normalizedValue.includes(normalizeAgentText(item));
+      });
+
+      return option || null;
+    }
+
+    function normalizeAgentText(text) {
+      return String(text || "").replace(/\s+/g, "").replace(/[：:，,。；;、]/g, "").toLowerCase();
+    }
+
+    function mergeAgentUpdates(updates) {
+      const merged = [];
+      updates.forEach(function (update) {
+        const existingIndex = merged.findIndex(function (item) {
+          return item.fieldKey === update.fieldKey;
+        });
+        if (existingIndex >= 0) {
+          merged[existingIndex] = update;
+        } else {
+          merged.push(update);
+        }
+      });
+      return merged;
+    }
+
+    function updateFormField(fieldKey, value) {
+      const textFieldMap = {
+        name: fields.name,
+        age: fields.age,
+        birthDate: fields.birthDate,
+        phone: fields.phone,
+        idNumber: fields.idNumber,
+        address: fields.address,
+        emergencyContact: fields.emergencyContact,
+        emergencyPhone: fields.emergencyPhone,
+        allergyNote: fields.allergyNote,
+        medicalHistory: fields.medicalHistory,
+        symptoms: fields.symptoms,
+        remark: fields.remark
+      };
+
+      const selectFieldMap = {
+        gender: fields.gender,
+        idType: fields.idType,
+        department: fields.department,
+        insuranceType: fields.insuranceType
+      };
+
+      if (textFieldMap[fieldKey]) {
+        textFieldMap[fieldKey].value = value;
+        dispatchAgentInputEvents(textFieldMap[fieldKey]);
+        return { success: true, displayValue: value };
+      }
+
+      if (selectFieldMap[fieldKey]) {
+        selectFieldMap[fieldKey].value = value;
+        if (selectFieldMap[fieldKey].value !== value) {
+          return { success: false, message: "字段值不在可选范围内：" + value + "。" };
+        }
+        dispatchAgentInputEvents(selectFieldMap[fieldKey]);
+        return { success: true, displayValue: value };
+      }
+
+      if (fieldKey === "visitType") {
+        const radio = document.querySelector('input[name="visitType"][value="' + value + '"]');
+        if (!radio) {
+          return { success: false, message: "字段值不在可选范围内：" + value + "。" };
+        }
+        radio.checked = true;
+        radio.dispatchEvent(new Event("change", { bubbles: true }));
+        return { success: true, displayValue: value };
+      }
+
+      if (fieldKey === "hasAllergy") {
+        fields.hasAllergy.checked = Boolean(value);
+        fields.hasAllergy.dispatchEvent(new Event("change", { bubbles: true }));
+        return { success: true, displayValue: value ? "有过敏史" : "无过敏史" };
+      }
+
+      return { success: false, message: "没有识别到要修改的字段。" };
+    }
+
+    function dispatchAgentInputEvents(element) {
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function formatAgentPlan(plan) {
+      const steps = ["执行计划："];
+      steps.push("1. 选择就诊人：" + plan.patient.patientId + " " + plan.patient.name);
+      plan.updates.forEach(function (update, index) {
+        steps.push(index + 2 + ". 修改" + update.label + "：" + (update.fieldKey === "hasAllergy" ? (update.value ? "有过敏史" : "无过敏史") : update.value));
+      });
+      if (plan.shouldSave) {
+        steps.push(plan.updates.length + 2 + ". 保存修改");
+      }
+      return steps.join("\n");
     }
 
     function clearMessages() {
