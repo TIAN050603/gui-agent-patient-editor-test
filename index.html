@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>就诊人信息编辑系统</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --text: #172033;
+      --muted: #64748b;
+      --line: #d8e1ee;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --danger: #b42318;
+      --danger-bg: #fff1f0;
+      --success: #087443;
+      --success-bg: #ecfdf3;
+      --warning-bg: #fff7ed;
+      --shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    .app-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 28px 32px;
+      border-bottom: 4px solid #38bdf8;
+    }
+
+    .app-header h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .app-header p {
+      margin: 0;
+      color: #cbd5e1;
+      font-size: 15px;
+    }
+
+    .page {
+      width: min(1480px, calc(100% - 32px));
+      margin: 24px auto 40px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .card-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-soft);
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+
+    .card-header h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .card-header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .selector-card {
+      margin-bottom: 20px;
+    }
+
+    .form-section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .form-section:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .section-title {
+      margin: 0 0 16px;
+      font-size: 17px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px 18px;
+    }
+
+    .form-field {
+      min-width: 0;
+    }
+
+    .form-field.full {
+      grid-column: 1 / -1;
+    }
+
+    label,
+    .field-label {
+      display: block;
+      margin-bottom: 7px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #243041;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select,
+    textarea {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 9px 11px;
+      color: var(--text);
+      background: #ffffff;
+      font: inherit;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    textarea {
+      min-height: 92px;
+      resize: vertical;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+
+    .radio-group,
+    .checkbox-line {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-height: 42px;
+      flex-wrap: wrap;
+    }
+
+    .option-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin: 0;
+      color: #334155;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .option-label input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      min-height: 42px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 9px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: #ffffff;
+      color: #1f2937;
+      border-color: #cbd5e1;
+    }
+
+    .btn-secondary:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+
+    .btn-danger {
+      background: #ffffff;
+      color: var(--danger);
+      border-color: #fecaca;
+    }
+
+    .btn-danger:hover {
+      background: var(--danger-bg);
+    }
+
+    .message {
+      display: none;
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .message.error {
+      color: var(--danger);
+      background: var(--danger-bg);
+      border: 1px solid #fda29b;
+    }
+
+    .message.success {
+      color: var(--success);
+      background: var(--success-bg);
+      border: 1px solid #86efac;
+    }
+
+    .task-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .task-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #ffffff;
+    }
+
+    .task-card h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      color: #0f172a;
+    }
+
+    .task-card p {
+      margin: 0;
+      color: #475569;
+      font-size: 14px;
+    }
+
+    .result-card {
+      margin-top: 20px;
+    }
+
+    pre {
+      min-height: 180px;
+      max-height: 440px;
+      overflow: auto;
+      margin: 0;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #111827;
+      color: #e5e7eb;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .hint {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .app-header {
+        padding: 22px 18px;
+      }
+
+      .page {
+        width: min(100% - 20px, 1480px);
+        margin-top: 14px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .card-body,
+      .card-header {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>就诊人信息编辑系统</h1>
+    <p>用于 GUI Agent 自动编辑页面内容的测试页面</p>
+  </header>
+
+  <main class="page">
+    <section class="card selector-card" aria-labelledby="selectorTitle">
+      <div class="card-header">
+        <h2 id="selectorTitle">就诊人选择区</h2>
+        <p>选择已有虚拟就诊人后，系统会自动加载可编辑表单。</p>
+      </div>
+      <div class="card-body">
+        <label for="patientSelect">选择已有就诊人</label>
+        <select id="patientSelect" name="patientSelect" data-testid="patient-select" aria-label="选择已有就诊人">
+        </select>
+        <div class="hint" id="selectedPatientHint" data-testid="selected-patient-hint" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="card" aria-labelledby="formTitle">
+        <div class="card-header">
+          <h2 id="formTitle">就诊人信息编辑表单</h2>
+          <p>字段包含文本框、数字框、日期、下拉框、单选、复选和多行文本框。</p>
+        </div>
+        <div class="card-body">
+          <div id="errorMessage" class="message error" data-testid="error-message" aria-label="错误提示" role="alert"></div>
+          <div id="successMessage" class="message success" data-testid="success-message" aria-label="成功提示" role="status"></div>
+
+          <form id="patientForm" data-testid="patient-form" aria-label="就诊人信息编辑表单" novalidate>
+            <section class="form-section" aria-labelledby="basicInfoTitle">
+              <h3 class="section-title" id="basicInfoTitle">基础信息</h3>
+              <div class="form-grid">
+                <div class="form-field">
+                  <label for="nameInput">姓名</label>
+                  <input type="text" id="nameInput" name="name" data-testid="name-input" aria-label="姓名" />
+                </div>
+                <div class="form-field">
+                  <label for="genderSelect">性别</label>
+                  <select id="genderSelect" name="gender" data-testid="gender-select" aria-label="性别">
+                    <option value="">请选择</option>
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                    <option value="其他">其他</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label for="ageInput">年龄</label>
+                  <input type="number" id="ageInput" name="age" data-testid="age-input" aria-label="年龄" min="0" max="120" />
+                </div>
+                <div class="form-field">
+                  <label for="birthDateInput">出生日期</label>
+                  <input type="date" id="birthDateInput" name="birthDate" data-testid="birth-date-input" aria-label="出生日期" />
+                </div>
+                <div class="form-field">
+                  <label for="phoneInput">手机号</label>
+                  <input type="text" id="phoneInput" name="phone" data-testid="phone-input" aria-label="手机号" />
+                </div>
+                <div class="form-field">
+                  <label for="idTypeSelect">证件类型</label>
+                  <select id="idTypeSelect" name="idType" data-testid="id-type-select" aria-label="证件类型">
+                    <option value="">请选择</option>
+                    <option value="身份证">身份证</option>
+                    <option value="护照">护照</option>
+                    <option value="港澳通行证">港澳通行证</option>
+                    <option value="其他">其他</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label for="idNumberInput">证件号码</label>
+                  <input type="text" id="idNumberInput" name="idNumber" data-testid="id-number-input" aria-label="证件号码" />
+                </div>
+                <div class="form-field">
+                  <label for="addressInput">地址</label>
+                  <input type="text" id="addressInput" name="address" data-testid="address-input" aria-label="地址" />
+                </div>
+                <div class="form-field">
+                  <label for="emergencyContactInput">紧急联系人</label>
+                  <input type="text" id="emergencyContactInput" name="emergencyContact" data-testid="emergency-contact-input" aria-label="紧急联系人" />
+                </div>
+                <div class="form-field">
+                  <label for="emergencyPhoneInput">紧急联系人电话</label>
+                  <input type="text" id="emergencyPhoneInput" name="emergencyPhone" data-testid="emergency-phone-input" aria-label="紧急联系人电话" />
+                </div>
+              </div>
+            </section>
+
+            <section class="form-section" aria-labelledby="visitInfoTitle">
+              <h3 class="section-title" id="visitInfoTitle">就诊信息</h3>
+              <div class="form-grid">
+                <div class="form-field">
+                  <label for="departmentSelect">就诊科室</label>
+                  <select id="departmentSelect" name="department" data-testid="department-select" aria-label="就诊科室">
+                    <option value="">请选择</option>
+                    <option value="呼吸内科">呼吸内科</option>
+                    <option value="消化内科">消化内科</option>
+                    <option value="心血管内科">心血管内科</option>
+                    <option value="神经内科">神经内科</option>
+                    <option value="骨科">骨科</option>
+                    <option value="皮肤科">皮肤科</option>
+                    <option value="儿科">儿科</option>
+                    <option value="眼科">眼科</option>
+                    <option value="耳鼻喉科">耳鼻喉科</option>
+                    <option value="急诊科">急诊科</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <span class="field-label" id="visitTypeLabel">就诊类型</span>
+                  <div class="radio-group" role="radiogroup" aria-labelledby="visitTypeLabel" data-testid="visit-type-radio-group">
+                    <label class="option-label" for="visitTypeFirst">
+                      <input type="radio" id="visitTypeFirst" name="visitType" value="初诊" data-testid="visit-type-first-radio" aria-label="就诊类型 初诊" />
+                      初诊
+                    </label>
+                    <label class="option-label" for="visitTypeFollow">
+                      <input type="radio" id="visitTypeFollow" name="visitType" value="复诊" data-testid="visit-type-follow-radio" aria-label="就诊类型 复诊" />
+                      复诊
+                    </label>
+                    <label class="option-label" for="visitTypeEmergency">
+                      <input type="radio" id="visitTypeEmergency" name="visitType" value="急诊" data-testid="visit-type-emergency-radio" aria-label="就诊类型 急诊" />
+                      急诊
+                    </label>
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label for="insuranceTypeSelect">医保类型</label>
+                  <select id="insuranceTypeSelect" name="insuranceType" data-testid="insurance-type-select" aria-label="医保类型">
+                    <option value="">请选择</option>
+                    <option value="城镇职工医保">城镇职工医保</option>
+                    <option value="城乡居民医保">城乡居民医保</option>
+                    <option value="商业保险">商业保险</option>
+                    <option value="自费">自费</option>
+                    <option value="其他">其他</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <span class="field-label">是否有过敏史</span>
+                  <div class="checkbox-line">
+                    <label class="option-label" for="hasAllergyCheckbox">
+                      <input type="checkbox" id="hasAllergyCheckbox" name="hasAllergy" data-testid="has-allergy-checkbox" aria-label="是否有过敏史" />
+                      有过敏史
+                    </label>
+                  </div>
+                </div>
+                <div class="form-field full">
+                  <label for="allergyNoteTextarea">过敏史说明</label>
+                  <textarea id="allergyNoteTextarea" name="allergyNote" data-testid="allergy-note-textarea" aria-label="过敏史说明"></textarea>
+                </div>
+                <div class="form-field full">
+                  <label for="medicalHistoryTextarea">既往病史</label>
+                  <textarea id="medicalHistoryTextarea" name="medicalHistory" data-testid="medical-history-textarea" aria-label="既往病史"></textarea>
+                </div>
+                <div class="form-field full">
+                  <label for="symptomsTextarea">主诉/症状描述</label>
+                  <textarea id="symptomsTextarea" name="symptoms" data-testid="symptoms-textarea" aria-label="主诉/症状描述"></textarea>
+                </div>
+                <div class="form-field full">
+                  <label for="remarkTextarea">备注</label>
+                  <textarea id="remarkTextarea" name="remark" data-testid="remark-textarea" aria-label="备注"></textarea>
+                </div>
+              </div>
+            </section>
+
+            <section class="form-section" aria-labelledby="actionsTitle">
+              <h3 class="section-title" id="actionsTitle">操作区</h3>
+              <div class="actions">
+                <button type="button" id="saveButton" name="saveButton" class="btn-primary" data-testid="save-button" aria-label="保存修改">保存修改</button>
+                <button type="button" id="resetButton" name="resetButton" class="btn-secondary" data-testid="reset-button" aria-label="重置当前就诊人">重置当前就诊人</button>
+                <button type="button" id="clearButton" name="clearButton" class="btn-danger" data-testid="clear-button" aria-label="清空表单">清空表单</button>
+              </div>
+            </section>
+          </form>
+        </div>
+      </section>
+
+      <aside class="card" aria-labelledby="tasksTitle">
+        <div class="card-header">
+          <h2 id="tasksTitle">Agent 测试任务区</h2>
+          <p>以下任务用于验证 GUI Agent 对页面元素的识别与操作能力。</p>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <article class="task-card" data-testid="task-card-1" aria-label="任务 1 简单文本输入测试">
+              <h3>任务 1：简单文本输入测试</h3>
+              <p>请选择 P001 张伟，将手机号修改为 13912345678，然后点击保存。</p>
+            </article>
+            <article class="task-card" data-testid="task-card-2" aria-label="任务 2 下拉框选择测试">
+              <h3>任务 2：下拉框选择测试</h3>
+              <p>请选择 P002 李娜，将就诊科室修改为 消化内科，然后点击保存。</p>
+            </article>
+            <article class="task-card" data-testid="task-card-3" aria-label="任务 3 单选按钮测试">
+              <h3>任务 3：单选按钮测试</h3>
+              <p>请选择 P003 王强，将就诊类型修改为 复诊，然后点击保存。</p>
+            </article>
+            <article class="task-card" data-testid="task-card-4" aria-label="任务 4 多字段联合编辑测试">
+              <h3>任务 4：多字段联合编辑测试</h3>
+              <p>请选择 P004 陈敏，将就诊科室修改为 呼吸内科，将就诊类型修改为 复诊，将主诉/症状描述修改为 咳嗽、胸闷两天，然后点击保存。</p>
+            </article>
+            <article class="task-card" data-testid="task-card-5" aria-label="任务 5 带错误校验测试">
+              <h3>任务 5：带错误校验测试</h3>
+              <p>请选择 P005 赵磊，将手机号修改为 123，然后点击保存，观察页面是否提示手机号格式错误。</p>
+            </article>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <section class="card result-card" aria-labelledby="jsonPreviewTitle">
+      <div class="card-header">
+        <h2 id="jsonPreviewTitle">当前保存结果 JSON 预览</h2>
+        <p>每次保存成功后，这里会展示当前就诊人的完整 JSON 数据。</p>
+      </div>
+      <div class="card-body">
+        <pre id="jsonPreview" data-testid="json-preview" aria-label="当前保存结果 JSON 预览">{}</pre>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const initialPatients = [
+      {
+        patientId: "P001",
+        name: "张伟",
+        gender: "男",
+        age: 38,
+        birthDate: "1988-03-12",
+        phone: "13810010001",
+        idType: "身份证",
+        idNumber: "IDTEST198803120001",
+        address: "北京市朝阳区虚拟路 101 号",
+        emergencyContact: "周岚",
+        emergencyPhone: "13810020001",
+        department: "呼吸内科",
+        visitType: "初诊",
+        insuranceType: "城镇职工医保",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "无明确慢性病史。",
+        symptoms: "咳嗽三天，偶有低热。",
+        remark: "测试数据，仅用于 GUI agent 验证。"
+      },
+      {
+        patientId: "P002",
+        name: "李娜",
+        gender: "女",
+        age: 29,
+        birthDate: "1997-07-21",
+        phone: "13810010002",
+        idType: "身份证",
+        idNumber: "IDTEST199707210002",
+        address: "上海市浦东新区示例街 202 号",
+        emergencyContact: "何青",
+        emergencyPhone: "13810020002",
+        department: "皮肤科",
+        visitType: "复诊",
+        insuranceType: "城乡居民医保",
+        hasAllergy: true,
+        allergyNote: "对青霉素类药物过敏。",
+        medicalHistory: "季节性皮炎史。",
+        symptoms: "皮肤红疹伴瘙痒一周。",
+        remark: "请关注皮肤过敏诱因。"
+      },
+      {
+        patientId: "P003",
+        name: "王强",
+        gender: "男",
+        age: 45,
+        birthDate: "1981-11-03",
+        phone: "13810010003",
+        idType: "身份证",
+        idNumber: "IDTEST198111030003",
+        address: "广州市天河区测试大道 303 号",
+        emergencyContact: "王晓",
+        emergencyPhone: "13810020003",
+        department: "骨科",
+        visitType: "初诊",
+        insuranceType: "商业保险",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "右膝旧伤史。",
+        symptoms: "左肩疼痛，活动受限。",
+        remark: "建议完善影像检查。"
+      },
+      {
+        patientId: "P004",
+        name: "陈敏",
+        gender: "女",
+        age: 34,
+        birthDate: "1992-01-19",
+        phone: "13810010004",
+        idType: "护照",
+        idNumber: "PTEST199201190004",
+        address: "深圳市南山区样例路 404 号",
+        emergencyContact: "陈宁",
+        emergencyPhone: "13810020004",
+        department: "心血管内科",
+        visitType: "初诊",
+        insuranceType: "自费",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "偶发心悸，无长期用药。",
+        symptoms: "胸口不适半天。",
+        remark: "测试多字段编辑任务。"
+      },
+      {
+        patientId: "P005",
+        name: "赵磊",
+        gender: "男",
+        age: 52,
+        birthDate: "1974-05-08",
+        phone: "13810010005",
+        idType: "身份证",
+        idNumber: "IDTEST197405080005",
+        address: "杭州市西湖区模拟巷 505 号",
+        emergencyContact: "赵欣",
+        emergencyPhone: "13810020005",
+        department: "神经内科",
+        visitType: "复诊",
+        insuranceType: "城镇职工医保",
+        hasAllergy: true,
+        allergyNote: "海鲜过敏。",
+        medicalHistory: "高血压病史五年。",
+        symptoms: "头晕，睡眠质量下降。",
+        remark: "用于手机号错误校验测试。"
+      },
+      {
+        patientId: "P006",
+        name: "刘洋",
+        gender: "男",
+        age: 26,
+        birthDate: "2000-09-15",
+        phone: "13810010006",
+        idType: "身份证",
+        idNumber: "IDTEST200009150006",
+        address: "成都市武侯区练习街 606 号",
+        emergencyContact: "刘晨",
+        emergencyPhone: "13810020006",
+        department: "耳鼻喉科",
+        visitType: "初诊",
+        insuranceType: "城乡居民医保",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "无特殊病史。",
+        symptoms: "咽痛伴鼻塞两天。",
+        remark: "普通门诊测试记录。"
+      },
+      {
+        patientId: "P007",
+        name: "孙静",
+        gender: "女",
+        age: 41,
+        birthDate: "1985-12-30",
+        phone: "13810010007",
+        idType: "港澳通行证",
+        idNumber: "HMTEST198512300007",
+        address: "南京市鼓楼区演示路 707 号",
+        emergencyContact: "孙琪",
+        emergencyPhone: "13810020007",
+        department: "消化内科",
+        visitType: "复诊",
+        insuranceType: "商业保险",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "慢性胃炎史。",
+        symptoms: "餐后腹胀，反酸。",
+        remark: "建议规律饮食。"
+      },
+      {
+        patientId: "P008",
+        name: "周杰",
+        gender: "男",
+        age: 63,
+        birthDate: "1963-04-02",
+        phone: "13810010008",
+        idType: "身份证",
+        idNumber: "IDTEST196304020008",
+        address: "武汉市江汉区虚构街 808 号",
+        emergencyContact: "周悦",
+        emergencyPhone: "13810020008",
+        department: "心血管内科",
+        visitType: "复诊",
+        insuranceType: "城镇职工医保",
+        hasAllergy: true,
+        allergyNote: "对磺胺类药物过敏。",
+        medicalHistory: "冠心病史，长期随访。",
+        symptoms: "活动后胸闷。",
+        remark: "复诊时核对用药。"
+      },
+      {
+        patientId: "P009",
+        name: "吴芳",
+        gender: "女",
+        age: 7,
+        birthDate: "2019-06-11",
+        phone: "13810010009",
+        idType: "身份证",
+        idNumber: "IDTEST201906110009",
+        address: "重庆市渝中区测试巷 909 号",
+        emergencyContact: "吴可",
+        emergencyPhone: "13810020009",
+        department: "儿科",
+        visitType: "初诊",
+        insuranceType: "城乡居民医保",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "无特殊病史。",
+        symptoms: "发热一天，精神尚可。",
+        remark: "儿童测试数据。"
+      },
+      {
+        patientId: "P010",
+        name: "郑宇",
+        gender: "男",
+        age: 31,
+        birthDate: "1995-10-05",
+        phone: "13810010010",
+        idType: "其他",
+        idNumber: "OTTEST199510050010",
+        address: "西安市雁塔区模拟路 1001 号",
+        emergencyContact: "郑然",
+        emergencyPhone: "13810020010",
+        department: "眼科",
+        visitType: "初诊",
+        insuranceType: "自费",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "近视史。",
+        symptoms: "眼干、视物疲劳。",
+        remark: "建议减少连续用眼。"
+      },
+      {
+        patientId: "P011",
+        name: "马丽",
+        gender: "女",
+        age: 57,
+        birthDate: "1969-08-18",
+        phone: "13810010011",
+        idType: "身份证",
+        idNumber: "IDTEST196908180011",
+        address: "天津市和平区样例街 1101 号",
+        emergencyContact: "马宁",
+        emergencyPhone: "13810020011",
+        department: "神经内科",
+        visitType: "复诊",
+        insuranceType: "城镇职工医保",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "偏头痛病史。",
+        symptoms: "反复头痛伴畏光。",
+        remark: "记录发作频率。"
+      },
+      {
+        patientId: "P012",
+        name: "胡斌",
+        gender: "男",
+        age: 48,
+        birthDate: "1978-02-26",
+        phone: "13810010012",
+        idType: "护照",
+        idNumber: "PTEST197802260012",
+        address: "苏州市姑苏区虚拟路 1202 号",
+        emergencyContact: "胡然",
+        emergencyPhone: "13810020012",
+        department: "急诊科",
+        visitType: "急诊",
+        insuranceType: "商业保险",
+        hasAllergy: true,
+        allergyNote: "对酒精消毒液皮肤敏感。",
+        medicalHistory: "无长期慢性病。",
+        symptoms: "腹痛急性发作。",
+        remark: "急诊流程测试。"
+      },
+      {
+        patientId: "P013",
+        name: "高欣",
+        gender: "女",
+        age: 22,
+        birthDate: "2004-12-09",
+        phone: "13810010013",
+        idType: "身份证",
+        idNumber: "IDTEST200412090013",
+        address: "青岛市市南区演示大道 1303 号",
+        emergencyContact: "高越",
+        emergencyPhone: "13810020013",
+        department: "皮肤科",
+        visitType: "初诊",
+        insuranceType: "城乡居民医保",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "无特殊病史。",
+        symptoms: "面部痤疮反复。",
+        remark: "关注生活作息。"
+      },
+      {
+        patientId: "P014",
+        name: "林涛",
+        gender: "男",
+        age: 36,
+        birthDate: "1990-03-27",
+        phone: "13810010014",
+        idType: "身份证",
+        idNumber: "IDTEST199003270014",
+        address: "厦门市思明区练习路 1404 号",
+        emergencyContact: "林安",
+        emergencyPhone: "13810020014",
+        department: "消化内科",
+        visitType: "初诊",
+        insuranceType: "自费",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "偶有胃部不适。",
+        symptoms: "腹泻两天，轻微腹痛。",
+        remark: "注意补水。"
+      },
+      {
+        patientId: "P015",
+        name: "何敏",
+        gender: "女",
+        age: 44,
+        birthDate: "1982-06-06",
+        phone: "13810010015",
+        idType: "港澳通行证",
+        idNumber: "HMTEST198206060015",
+        address: "长沙市岳麓区测试街 1505 号",
+        emergencyContact: "何嘉",
+        emergencyPhone: "13810020015",
+        department: "呼吸内科",
+        visitType: "复诊",
+        insuranceType: "城镇职工医保",
+        hasAllergy: true,
+        allergyNote: "花粉过敏。",
+        medicalHistory: "过敏性鼻炎史。",
+        symptoms: "咳嗽、鼻痒。",
+        remark: "季节性症状明显。"
+      },
+      {
+        patientId: "P016",
+        name: "郭亮",
+        gender: "男",
+        age: 70,
+        birthDate: "1956-01-14",
+        phone: "13810010016",
+        idType: "身份证",
+        idNumber: "IDTEST195601140016",
+        address: "郑州市金水区模拟大道 1606 号",
+        emergencyContact: "郭宁",
+        emergencyPhone: "13810020016",
+        department: "骨科",
+        visitType: "复诊",
+        insuranceType: "城镇职工医保",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "骨质疏松史。",
+        symptoms: "腰背疼痛加重。",
+        remark: "注意跌倒风险。"
+      },
+      {
+        patientId: "P017",
+        name: "罗婷",
+        gender: "女",
+        age: 33,
+        birthDate: "1993-09-24",
+        phone: "13810010017",
+        idType: "身份证",
+        idNumber: "IDTEST199309240017",
+        address: "合肥市蜀山区示例路 1707 号",
+        emergencyContact: "罗清",
+        emergencyPhone: "13810020017",
+        department: "眼科",
+        visitType: "初诊",
+        insuranceType: "商业保险",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "无特殊病史。",
+        symptoms: "左眼异物感。",
+        remark: "检查角膜情况。"
+      },
+      {
+        patientId: "P018",
+        name: "许晨",
+        gender: "其他",
+        age: 28,
+        birthDate: "1998-04-17",
+        phone: "13810010018",
+        idType: "其他",
+        idNumber: "OTTEST199804170018",
+        address: "福州市鼓楼区虚构巷 1808 号",
+        emergencyContact: "许然",
+        emergencyPhone: "13810020018",
+        department: "耳鼻喉科",
+        visitType: "初诊",
+        insuranceType: "其他",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "慢性咽炎史。",
+        symptoms: "声音嘶哑三天。",
+        remark: "性别选项覆盖测试。"
+      },
+      {
+        patientId: "P019",
+        name: "秦月",
+        gender: "女",
+        age: 19,
+        birthDate: "2007-11-28",
+        phone: "13810010019",
+        idType: "身份证",
+        idNumber: "IDTEST200711280019",
+        address: "昆明市五华区测试路 1909 号",
+        emergencyContact: "秦佳",
+        emergencyPhone: "13810020019",
+        department: "儿科",
+        visitType: "复诊",
+        insuranceType: "城乡居民医保",
+        hasAllergy: true,
+        allergyNote: "对芒果过敏。",
+        medicalHistory: "轻度贫血史。",
+        symptoms: "乏力，食欲下降。",
+        remark: "复诊随访测试。"
+      },
+      {
+        patientId: "P020",
+        name: "邓凯",
+        gender: "男",
+        age: 54,
+        birthDate: "1972-07-07",
+        phone: "13810010020",
+        idType: "身份证",
+        idNumber: "IDTEST197207070020",
+        address: "宁波市海曙区演示街 2002 号",
+        emergencyContact: "邓航",
+        emergencyPhone: "13810020020",
+        department: "急诊科",
+        visitType: "急诊",
+        insuranceType: "自费",
+        hasAllergy: false,
+        allergyNote: "",
+        medicalHistory: "血糖偏高，未规律用药。",
+        symptoms: "外伤后局部疼痛。",
+        remark: "急诊外伤场景。"
+      }
+    ];
+
+    let patients = deepClone(initialPatients);
+    let currentPatientId = patients[0].patientId;
+
+    const fields = {
+      patientSelect: document.getElementById("patientSelect"),
+      selectedPatientHint: document.getElementById("selectedPatientHint"),
+      name: document.getElementById("nameInput"),
+      gender: document.getElementById("genderSelect"),
+      age: document.getElementById("ageInput"),
+      birthDate: document.getElementById("birthDateInput"),
+      phone: document.getElementById("phoneInput"),
+      idType: document.getElementById("idTypeSelect"),
+      idNumber: document.getElementById("idNumberInput"),
+      address: document.getElementById("addressInput"),
+      emergencyContact: document.getElementById("emergencyContactInput"),
+      emergencyPhone: document.getElementById("emergencyPhoneInput"),
+      department: document.getElementById("departmentSelect"),
+      insuranceType: document.getElementById("insuranceTypeSelect"),
+      hasAllergy: document.getElementById("hasAllergyCheckbox"),
+      allergyNote: document.getElementById("allergyNoteTextarea"),
+      medicalHistory: document.getElementById("medicalHistoryTextarea"),
+      symptoms: document.getElementById("symptomsTextarea"),
+      remark: document.getElementById("remarkTextarea"),
+      errorMessage: document.getElementById("errorMessage"),
+      successMessage: document.getElementById("successMessage"),
+      jsonPreview: document.getElementById("jsonPreview")
+    };
+
+    document.getElementById("saveButton").addEventListener("click", saveCurrentPatient);
+    document.getElementById("resetButton").addEventListener("click", resetCurrentPatient);
+    document.getElementById("clearButton").addEventListener("click", clearForm);
+    fields.patientSelect.addEventListener("change", function () {
+      currentPatientId = fields.patientSelect.value;
+      loadPatientToForm(getCurrentPatient());
+      clearMessages();
+    });
+
+    renderPatientOptions();
+    fields.patientSelect.value = currentPatientId;
+    loadPatientToForm(getCurrentPatient());
+
+    function deepClone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function renderPatientOptions() {
+      fields.patientSelect.innerHTML = "";
+      patients.forEach(function (patient) {
+        const option = document.createElement("option");
+        option.value = patient.patientId;
+        option.textContent = patient.patientId + " - " + patient.name + " - " + patient.department;
+        option.setAttribute("data-testid", "patient-option-" + patient.patientId.toLowerCase());
+        fields.patientSelect.appendChild(option);
+      });
+    }
+
+    function getCurrentPatient() {
+      return patients.find(function (patient) {
+        return patient.patientId === currentPatientId;
+      });
+    }
+
+    function getInitialPatient(patientId) {
+      return initialPatients.find(function (patient) {
+        return patient.patientId === patientId;
+      });
+    }
+
+    function loadPatientToForm(patient) {
+      if (!patient) {
+        clearForm();
+        return;
+      }
+
+      fields.name.value = patient.name || "";
+      fields.gender.value = patient.gender || "";
+      fields.age.value = patient.age ?? "";
+      fields.birthDate.value = patient.birthDate || "";
+      fields.phone.value = patient.phone || "";
+      fields.idType.value = patient.idType || "";
+      fields.idNumber.value = patient.idNumber || "";
+      fields.address.value = patient.address || "";
+      fields.emergencyContact.value = patient.emergencyContact || "";
+      fields.emergencyPhone.value = patient.emergencyPhone || "";
+      fields.department.value = patient.department || "";
+      fields.insuranceType.value = patient.insuranceType || "";
+      fields.hasAllergy.checked = Boolean(patient.hasAllergy);
+      fields.allergyNote.value = patient.allergyNote || "";
+      fields.medicalHistory.value = patient.medicalHistory || "";
+      fields.symptoms.value = patient.symptoms || "";
+      fields.remark.value = patient.remark || "";
+      setVisitType(patient.visitType || "");
+      fields.selectedPatientHint.textContent = "当前就诊人：" + patient.patientId + " - " + patient.name + " - " + patient.department;
+    }
+
+    function setVisitType(value) {
+      document.querySelectorAll('input[name="visitType"]').forEach(function (radio) {
+        radio.checked = radio.value === value;
+      });
+    }
+
+    function getSelectedVisitType() {
+      const checked = document.querySelector('input[name="visitType"]:checked');
+      return checked ? checked.value : "";
+    }
+
+    function collectFormData() {
+      return {
+        patientId: currentPatientId,
+        name: fields.name.value.trim(),
+        gender: fields.gender.value,
+        age: fields.age.value === "" ? "" : Number(fields.age.value),
+        birthDate: fields.birthDate.value,
+        phone: fields.phone.value.trim(),
+        idType: fields.idType.value,
+        idNumber: fields.idNumber.value.trim(),
+        address: fields.address.value.trim(),
+        emergencyContact: fields.emergencyContact.value.trim(),
+        emergencyPhone: fields.emergencyPhone.value.trim(),
+        department: fields.department.value,
+        visitType: getSelectedVisitType(),
+        insuranceType: fields.insuranceType.value,
+        hasAllergy: fields.hasAllergy.checked,
+        allergyNote: fields.allergyNote.value.trim(),
+        medicalHistory: fields.medicalHistory.value.trim(),
+        symptoms: fields.symptoms.value.trim(),
+        remark: fields.remark.value.trim()
+      };
+    }
+
+    function validatePatient(patient) {
+      const errors = [];
+      const mainlandPhonePattern = /^1\d{10}$/;
+
+      if (!patient.name) {
+        errors.push("姓名不能为空。");
+      }
+
+      if (!mainlandPhonePattern.test(patient.phone)) {
+        errors.push("手机号格式不正确，请输入 11 位中国大陆手机号。");
+      }
+
+      if (patient.age === "" || Number.isNaN(patient.age) || patient.age < 0 || patient.age > 120) {
+        errors.push("年龄必须在 0 到 120 之间。");
+      }
+
+      if (!patient.idNumber) {
+        errors.push("证件号码不能为空。");
+      }
+
+      if (!patient.department) {
+        errors.push("就诊科室不能为空。");
+      }
+
+      if (!patient.symptoms) {
+        errors.push("主诉/症状描述不能为空。");
+      }
+
+      if (patient.hasAllergy && !patient.allergyNote) {
+        errors.push("已勾选是否有过敏史，过敏史说明不能为空。");
+      }
+
+      return errors;
+    }
+
+    function saveCurrentPatient() {
+      clearMessages();
+      const formData = collectFormData();
+      const errors = validatePatient(formData);
+
+      if (errors.length > 0) {
+        showError(errors.join(" "));
+        return;
+      }
+
+      const index = patients.findIndex(function (patient) {
+        return patient.patientId === currentPatientId;
+      });
+
+      if (index === -1) {
+        showError("未找到当前就诊人，无法保存。");
+        return;
+      }
+
+      patients[index] = formData;
+      renderPatientOptions();
+      fields.patientSelect.value = currentPatientId;
+      fields.selectedPatientHint.textContent = "当前就诊人：" + formData.patientId + " - " + formData.name + " - " + formData.department;
+      showSuccess("保存成功。");
+      fields.jsonPreview.textContent = JSON.stringify(formData, null, 2);
+    }
+
+    function resetCurrentPatient() {
+      clearMessages();
+      const original = deepClone(getInitialPatient(currentPatientId));
+      const index = patients.findIndex(function (patient) {
+        return patient.patientId === currentPatientId;
+      });
+
+      if (!original || index === -1) {
+        showError("未找到当前就诊人的初始数据，无法重置。");
+        return;
+      }
+
+      patients[index] = original;
+      renderPatientOptions();
+      fields.patientSelect.value = currentPatientId;
+      loadPatientToForm(original);
+      fields.jsonPreview.textContent = "{}";
+      showSuccess("已重置当前就诊人为初始数据。");
+    }
+
+    function clearForm() {
+      clearMessages();
+      document.getElementById("patientForm").reset();
+      setVisitType("");
+      fields.jsonPreview.textContent = "{}";
+      fields.selectedPatientHint.textContent = currentPatientId ? "当前就诊人：" + currentPatientId + "，表单已清空。" : "表单已清空。";
+    }
+
+    function clearMessages() {
+      fields.errorMessage.textContent = "";
+      fields.errorMessage.classList.remove("show");
+      fields.successMessage.textContent = "";
+      fields.successMessage.classList.remove("show");
+    }
+
+    function showError(message) {
+      fields.errorMessage.textContent = message;
+      fields.errorMessage.classList.add("show");
+      fields.successMessage.classList.remove("show");
+    }
+
+    function showSuccess(message) {
+      fields.successMessage.textContent = message;
+      fields.successMessage.classList.add("show");
+      fields.errorMessage.classList.remove("show");
+    }
+  </script>
+</body>
+</html>
