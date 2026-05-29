@@ -236,13 +236,13 @@ def stringify_agent_result(result: Any) -> str:
     return str(result)
 
 
-@app.get("/api/health")
-async def health() -> JSONResponse:
+@app.get("/api/health", response_model=None)
+async def health():
     return utf8_json({"ok": True, "message": "Browser Use backend is running"})
 
 
-@app.get("/api/qwen/test")
-async def test_qwen() -> dict[str, Any] | JSONResponse:
+@app.get("/api/qwen/test", response_model=None)
+async def test_qwen():
     api_key = os.getenv("DASHSCOPE_API_KEY", "").strip()
     if not api_key:
         return utf8_json({"ok": False, "error": "未配置 DASHSCOPE_API_KEY"}, 400)
@@ -635,8 +635,8 @@ def run_browser_use_agent_subprocess(command: str, target_url: str, timeout_seco
         }
 
 
-@app.post("/api/agent/run")
-async def run_agent(payload: AgentRunRequest) -> dict[str, Any]:
+@app.post("/api/agent/run", response_model=None)
+async def run_agent(payload: AgentRunRequest):
     command = payload.command.strip()
     if not command:
         return utf8_json({"ok": False, "error": "command 不能为空"}, 400)
@@ -659,8 +659,8 @@ async def run_agent(payload: AgentRunRequest) -> dict[str, Any]:
         return utf8_json({"ok": False, "error": "Agent 执行失败：" + message}, 500)
 
 
-@app.post("/api/universal-agent/run")
-async def run_universal_agent(payload: AgentRunRequest) -> dict[str, Any] | JSONResponse:
+@app.post("/api/universal-agent/run", response_model=None)
+async def run_universal_agent(payload: AgentRunRequest):
     try:
         command = payload.command.strip()
         if not command:
@@ -854,8 +854,8 @@ async def run_quick_agent(command: str, target_url: str) -> dict[str, Any]:
                 pass
 
 
-@app.post("/api/quick-agent/run")
-async def run_quick_agent_api(payload: AgentRunRequest) -> dict[str, Any] | JSONResponse:
+@app.post("/api/quick-agent/run", response_model=None)
+async def run_quick_agent_api(payload: AgentRunRequest):
     command = payload.command.strip()
     if not command:
         return utf8_json({"ok": False, "mode": "playwright-smoke-test", "error": "command 不能为空"}, 400)
