@@ -374,6 +374,17 @@
       background: #ffffff;
     }
 
+    .agent-mode-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .agent-mode-grid .actions {
+      gap: 8px;
+    }
+
     .agent-controls textarea {
       min-height: 112px;
       margin-bottom: 12px;
@@ -666,6 +677,29 @@
               aria-live="polite"
             ></div>
             <div class="agent-controls">
+              <div class="agent-mode-grid">
+                <div class="form-field">
+                  <label for="agentModeSelect">Agent 模式选择</label>
+                  <select id="agentModeSelect" name="agentModeSelect" data-testid="agent-mode-select" aria-label="Agent 模式选择">
+                    <option value="local">本地规则 Agent</option>
+                    <option value="browser-use">Browser Use Agent</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label for="browserUseBackendUrlInput">Browser Use 后端地址</label>
+                  <input
+                    type="text"
+                    id="browserUseBackendUrlInput"
+                    name="browserUseBackendUrlInput"
+                    data-testid="browser-use-backend-url-input"
+                    aria-label="Browser Use 后端地址"
+                    value="http://127.0.0.1:8000"
+                  />
+                </div>
+                <div class="actions">
+                  <button type="button" id="checkBrowserUseBackendButton" name="checkBrowserUseBackendButton" class="btn-secondary" data-testid="check-browser-use-backend-button" aria-label="检查 Browser Use 后端连接">检查 Browser Use 后端连接</button>
+                </div>
+              </div>
               <label for="agentCommandInput">任务输入框</label>
               <textarea
                 id="agentCommandInput"
@@ -1154,7 +1188,9 @@
       successMessage: document.getElementById("successMessage"),
       jsonPreview: document.getElementById("jsonPreview"),
       agentChatHistory: document.getElementById("agentChatHistory"),
-      agentCommandInput: document.getElementById("agentCommandInput")
+      agentCommandInput: document.getElementById("agentCommandInput"),
+      agentMode: document.getElementById("agentModeSelect"),
+      browserUseBackendUrl: document.getElementById("browserUseBackendUrlInput")
     };
 
     document.getElementById("saveButton").addEventListener("click", saveCurrentPatient);
@@ -1163,6 +1199,7 @@
     document.getElementById("sendAgentCommandButton").addEventListener("click", function () {
       executeAgentCommand(fields.agentCommandInput.value);
     });
+    document.getElementById("checkBrowserUseBackendButton").addEventListener("click", checkBrowserUseBackend);
     document.getElementById("clearAgentChatButton").addEventListener("click", function () {
       fields.agentChatHistory.innerHTML = "";
     });
@@ -1365,7 +1402,7 @@
       fields.selectedPatientHint.textContent = currentPatientId ? "当前就诊人：" + currentPatientId + "，表单已清空。" : "表单已清空。";
     }
 
-    function executeAgentCommand(commandText) {
+    async function executeAgentCommand(commandText) {
       const command = (commandText || "").trim();
       if (!command) {
         appendChatMessage("agent", "请输入任务内容后再发送。", "error");
@@ -1373,6 +1410,12 @@
       }
 
       appendChatMessage("user", command, "user");
+
+      if (fields.agentMode.value === "browser-use") {
+        await executeBrowserUseCommand(command);
+        return;
+      }
+
       appendChatMessage("agent", "已收到任务，正在解析……", "agent");
 
       const plan = parseAgentCommand(command);
@@ -1384,6 +1427,59 @@
       appendChatMessage("agent", formatAgentPlan(plan), "plan");
       const result = applyAgentPlan(plan);
       appendChatMessage("agent", result.message, result.success ? "success" : "error");
+    }
+
+    async function executeBrowserUseCommand(command) {
+      const backendUrl = getBrowserUseBackendUrl();
+      const targetUrl = "https://tian050603.github.io/gui-agent-patient-editor-test/";
+
+      appendChatMessage("agent", "已切换到 Browser Use Agent 模式，正在发送请求到本地后端……", "agent");
+
+      try {
+        const response = await fetch(backendUrl + "/api/agent/run", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            command: command,
+            targetUrl: targetUrl
+          })
+        });
+        const data = await response.json().catch(function () {
+          return {};
+        });
+
+        if (!response.ok || !data.ok) {
+          appendChatMessage("agent", "Agent 执行失败：\n" + (data.error || "后端返回异常状态。"), "error");
+          return;
+        }
+
+        appendChatMessage("agent", "Browser Use Agent 执行完成。\n\n执行总结：\n" + (data.summary || "后端未返回总结。") + "\n\n原始结果：\n" + (data.rawResult || ""), "success");
+      } catch (error) {
+        appendChatMessage("agent", "无法连接 Browser Use 后端，请确认本地服务已启动。\n错误信息：" + error.message, "error");
+      }
+    }
+
+    async function checkBrowserUseBackend() {
+      const backendUrl = getBrowserUseBackendUrl();
+      appendChatMessage("agent", "正在检查 Browser Use 后端连接：" + backendUrl, "agent");
+
+      try {
+        const response = await fetch(backendUrl + "/api/health");
+        const data = await response.json();
+        if (response.ok && data.ok) {
+          appendChatMessage("agent", "Browser Use 后端连接成功。", "success");
+          return;
+        }
+        appendChatMessage("agent", "无法连接 Browser Use 后端，请确认本地服务已启动。", "error");
+      } catch (error) {
+        appendChatMessage("agent", "无法连接 Browser Use 后端，请确认本地服务已启动。\n错误信息：" + error.message, "error");
+      }
+    }
+
+    function getBrowserUseBackendUrl() {
+      return (fields.browserUseBackendUrl.value || "http://127.0.0.1:8000").trim().replace(/\/+$/, "");
     }
 
     function parseAgentCommand(commandText) {

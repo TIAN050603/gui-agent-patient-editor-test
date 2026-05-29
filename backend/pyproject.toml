@@ -1,0 +1,19 @@
+[project]
+name = "gui-agent-browser-use-backend"
+version = "0.1.0"
+description = "Local FastAPI backend for running Browser Use against the GUI agent test page."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "python-dotenv",
+  "browser-use",
+  "langchain-openai",
+]
+
+[tool.uvicorn]
+factory = false
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
