@@ -130,6 +130,14 @@ https://tian050603.github.io/gui-agent-patient-editor-test/
 
 如果成功，前端对话框会展示 Qwen 解析出的 plan、Playwright 执行 steps 和页面 JSON 预览。
 
+如果页面仍然默认显示 `Browser Use Agent`，说明浏览器还在使用旧版 GitHub Pages 缓存。请对前端页面执行强制刷新：
+
+```text
+Ctrl + F5
+```
+
+新版页面会默认选择 `Universal Form Agent`。
+
 Universal Form Agent 成功响应中必须包含：
 
 ```json
@@ -213,6 +221,8 @@ POST http://127.0.0.1:8000/api/agent/run
 ```
 
 `/api/agent/run` 会把 Browser Use 放到独立 Python 子进程中运行。这样即使 Browser Use、浏览器层或 ChatOpenAI/Qwen 层出现非协作式阻塞，FastAPI 主进程也可以在 180 秒后强制终止子进程并返回错误。
+
+Browser Use worker 的日志会以 `[browser-use-worker]` 前缀实时打印到 uvicorn 终端，便于判断它具体卡在浏览器启动、模型调用还是 Browser Use 内部动作。
 
 5. 如果只想绕过 Qwen 解析做浏览器链路 smoke test，可以使用 Playwright Smoke Test：
 

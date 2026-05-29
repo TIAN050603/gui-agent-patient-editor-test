@@ -5,6 +5,8 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -115,6 +117,14 @@ def print_runtime_config() -> None:
     print("LLM_PROVIDER=" + get_provider_name(), flush=True)
     print("DASHSCOPE_MODEL=" + get_dashscope_model(), flush=True)
     print("DASHSCOPE_BASE_URL=" + get_dashscope_base_url(), flush=True)
+
+
+def print_worker_log(prefix: str, text: str) -> None:
+    if not text:
+        return
+    safe_text = sanitize_log(text.rstrip())
+    if safe_text:
+        print(prefix + safe_text, flush=True)
 
 
 def create_chat_openai(ChatOpenAI: Any, kwargs: dict[str, Any]) -> Any:
@@ -570,24 +580,41 @@ def run_browser_use_agent_subprocess(command: str, target_url: str, timeout_seco
             [sys.executable, str(worker_path), str(input_path)],
             cwd=str(BACKEND_DIR),
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
             encoding="utf-8",
             errors="replace",
+            bufsize=1,
         )
 
+        logs: list[str] = []
+
+        def read_worker_output() -> None:
+            if not process.stdout:
+                return
+            for line in process.stdout:
+                logs.append(line)
+                print_worker_log("[browser-use-worker] ", line)
+
+        reader = threading.Thread(target=read_worker_output, daemon=True)
+        reader.start()
+        started_at = time.monotonic()
         try:
-            stdout, stderr = process.communicate(timeout=timeout_seconds)
+            while process.poll() is None:
+                if time.monotonic() - started_at > timeout_seconds:
+                    raise subprocess.TimeoutExpired(process.args, timeout_seconds)
+                time.sleep(0.2)
         except subprocess.TimeoutExpired:
             process.kill()
-            stdout, stderr = process.communicate(timeout=10)
+            reader.join(timeout=3)
             return {
                 "ok": False,
                 "error": "Browser Use Agent 执行超时，可能卡在 Browser Use + ChatOpenAI/Qwen 层",
-                "debugLog": sanitize_log((stdout or "") + "\n" + (stderr or "")),
+                "debugLog": sanitize_log("".join(logs)),
             }
 
-        debug_log = sanitize_log((stdout or "") + "\n" + (stderr or ""))
+        reader.join(timeout=3)
+        debug_log = sanitize_log("".join(logs))
         if output_path.exists():
             try:
                 result = json.loads(output_path.read_text(encoding="utf-8"))

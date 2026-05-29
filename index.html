@@ -1223,6 +1223,7 @@
 
     renderPatientOptions();
     fields.patientSelect.value = currentPatientId;
+    fields.agentMode.value = "universal";
     loadPatientToForm(getCurrentPatient());
 
     function deepClone(value) {
@@ -1477,7 +1478,7 @@
       const backendUrl = getBrowserUseBackendUrl();
       const targetUrl = "https://tian050603.github.io/gui-agent-patient-editor-test/";
 
-      appendChatMessage("agent", "已切换到 Browser Use Agent 模式，正在发送请求到本地后端……", "agent");
+      appendChatMessage("agent", "已切换到 Browser Use Agent 实验模式。这个通道当前可能卡在 Browser Use + ChatOpenAI/Qwen 层；推荐主路径是 Universal Form Agent。正在发送请求到本地后端……", "agent");
 
       try {
         const response = await fetch(backendUrl + "/api/agent/run", {
