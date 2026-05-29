@@ -9,6 +9,7 @@ dependencies = [
   "python-dotenv",
   "requests",
   "httpx",
+  "playwright",
   "browser-use",
   "langchain-openai",
 ]

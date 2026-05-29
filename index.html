@@ -683,6 +683,7 @@
                   <select id="agentModeSelect" name="agentModeSelect" data-testid="agent-mode-select" aria-label="Agent 模式选择">
                     <option value="local">本地规则 Agent</option>
                     <option value="browser-use">Browser Use Agent</option>
+                    <option value="playwright-quick">Playwright Quick Agent</option>
                   </select>
                 </div>
                 <div class="form-field">
@@ -1416,6 +1417,11 @@
         return;
       }
 
+      if (fields.agentMode.value === "playwright-quick") {
+        await executePlaywrightQuickCommand(command);
+        return;
+      }
+
       appendChatMessage("agent", "已收到任务，正在解析……", "agent");
 
       const plan = parseAgentCommand(command);
@@ -1458,6 +1464,45 @@
         appendChatMessage("agent", "Browser Use Agent 执行完成。\n\n执行总结：\n" + (data.summary || "后端未返回总结。") + "\n\n原始结果：\n" + (data.rawResult || ""), "success");
       } catch (error) {
         appendChatMessage("agent", "无法连接 Browser Use 后端，请确认本地服务已启动。\n错误信息：" + error.message, "error");
+      }
+    }
+
+    async function executePlaywrightQuickCommand(command) {
+      const backendUrl = getBrowserUseBackendUrl();
+      const targetUrl = "https://tian050603.github.io/gui-agent-patient-editor-test/";
+
+      appendChatMessage("agent", "已切换到 Playwright Quick Agent 模式，正在请求本地后端直接操作页面……", "agent");
+
+      try {
+        const response = await fetch(backendUrl + "/api/quick-agent/run", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            command: command,
+            targetUrl: targetUrl
+          })
+        });
+        const data = await response.json().catch(function () {
+          return {};
+        });
+
+        if (!response.ok || !data.ok) {
+          appendChatMessage("agent", "Playwright Quick Agent 执行失败：\n" + (data.error || "后端返回异常状态。"), "error");
+          return;
+        }
+
+        appendChatMessage(
+          "agent",
+          "Playwright Quick Agent 执行完成。\n\n执行步骤：\n" +
+            (data.steps || []).map(function (step, index) { return index + 1 + ". " + step; }).join("\n") +
+            "\n\n页面 JSON 预览：\n" +
+            (data.preview || ""),
+          "success"
+        );
+      } catch (error) {
+        appendChatMessage("agent", "无法连接本地后端，请确认服务已启动。\n错误信息：" + error.message, "error");
       }
     }
 

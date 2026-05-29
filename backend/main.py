@@ -280,7 +280,7 @@ def run_browser_use_agent_subprocess(command: str, target_url: str, timeout_seco
             stdout, stderr = process.communicate(timeout=10)
             return {
                 "ok": False,
-                "error": "Browser Use Agent 执行超时，可能是 OpenAI-compatible SDK 或模型调用层卡住",
+                "error": "Browser Use Agent 执行超时，可能卡在 Browser Use + ChatOpenAI/Qwen 层",
                 "debugLog": sanitize_log((stdout or "") + "\n" + (stderr or "")),
             }
 
@@ -327,3 +327,133 @@ async def run_agent(payload: AgentRunRequest) -> dict[str, Any]:
         if "playwright" in message.lower() or "browser" in message.lower():
             message = "浏览器未安装或无法启动，请先运行 playwright install chromium。原始错误：" + message
         return JSONResponse(status_code=500, content={"ok": False, "error": "Agent 执行失败：" + message})
+
+
+def parse_quick_agent_command(command: str) -> dict[str, Any]:
+    patient_id = ""
+    for candidate in ["P001", "P002", "P003", "P004", "P005"]:
+      if candidate in command.upper():
+          patient_id = candidate
+          break
+
+    updates: dict[str, str] = {}
+
+    phone_match = re_search(r"(?:手机号|手机|联系电话).*?(?:修改为|改为|改成|设置为)\s*([0-9]{1,20})", command)
+    if phone_match:
+        updates["phone"] = phone_match
+
+    department_options = ["呼吸内科", "消化内科", "心血管内科", "神经内科", "骨科", "皮肤科", "儿科", "眼科", "耳鼻喉科", "急诊科"]
+    for option in department_options:
+        if option in command and ("科室" in command or "就诊科室" in command):
+            updates["department"] = option
+            break
+
+    for option in ["初诊", "复诊", "急诊"]:
+        if option in command and "就诊类型" in command:
+            updates["visitType"] = option
+            break
+
+    symptoms = re_search(r"(?:主诉/症状描述|主诉|症状描述|症状).*?(?:修改为|改为|改成|设置为)\s*(.+?)(?:，然后|,然后|然后点击保存|点击保存|。|$)", command)
+    if symptoms:
+        updates["symptoms"] = symptoms.strip(" ，,。")
+
+    return {
+        "patientId": patient_id,
+        "updates": updates,
+        "shouldSave": any(keyword in command for keyword in ["保存", "点击保存", "然后保存", "提交"]),
+    }
+
+
+def re_search(pattern: str, text: str) -> str:
+    import re
+
+    match = re.search(pattern, text)
+    return match.group(1).strip() if match else ""
+
+
+async def select_by_selector_or_testid(page: Any, css_selector: str, test_id: str) -> Any:
+    locator = page.locator(css_selector)
+    if await locator.count() > 0:
+        return locator.first
+    return page.get_by_test_id(test_id)
+
+
+async def run_quick_agent(command: str, target_url: str) -> dict[str, Any]:
+    parsed = parse_quick_agent_command(command)
+    if not parsed["patientId"]:
+        return {"ok": False, "mode": "playwright-quick-agent", "error": "没有识别到支持的就诊人，请输入 P001 到 P005。"}
+    if not parsed["updates"]:
+        return {"ok": False, "mode": "playwright-quick-agent", "error": "没有识别到要修改的字段。"}
+
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError:
+        return {"ok": False, "mode": "playwright-quick-agent", "error": "Playwright 未安装，请运行 pip install playwright 并执行 playwright install chromium。"}
+
+    steps = []
+    browser = None
+    try:
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=False)
+            page = await browser.new_page()
+            await page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
+            steps.append("已打开页面")
+
+            await page.locator("#patientSelect").select_option(parsed["patientId"])
+            steps.append("已选择就诊人 " + parsed["patientId"])
+
+            updates = parsed["updates"]
+            if "phone" in updates:
+                await page.locator("#phoneInput").fill(updates["phone"])
+                steps.append("已修改手机号为 " + updates["phone"])
+
+            if "department" in updates:
+                await page.locator("#departmentSelect").select_option(updates["department"])
+                steps.append("已修改就诊科室为 " + updates["department"])
+
+            if "visitType" in updates:
+                await page.locator('input[name="visitType"][value="' + updates["visitType"] + '"]').check()
+                steps.append("已修改就诊类型为 " + updates["visitType"])
+
+            if "symptoms" in updates:
+                await page.locator("#symptomsTextarea").fill(updates["symptoms"])
+                steps.append("已修改主诉/症状描述为 " + updates["symptoms"])
+
+            if parsed["shouldSave"]:
+                await page.locator("#saveButton").click()
+                steps.append("已点击保存")
+                await page.wait_for_timeout(300)
+
+            preview = await page.locator("#jsonPreview").inner_text(timeout=5000)
+            return {
+                "ok": True,
+                "mode": "playwright-quick-agent",
+                "summary": "任务执行完成",
+                "steps": steps,
+                "preview": preview,
+            }
+    except Exception as exc:
+        message = str(exc) or exc.__class__.__name__
+        if "Executable doesn't exist" in message or "browser" in message.lower():
+            message = "浏览器未安装或无法启动，请运行 playwright install chromium。原始错误：" + message
+        return {"ok": False, "mode": "playwright-quick-agent", "error": message}
+    finally:
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
+
+
+@app.post("/api/quick-agent/run")
+async def run_quick_agent_api(payload: AgentRunRequest) -> dict[str, Any] | JSONResponse:
+    command = payload.command.strip()
+    if not command:
+        return JSONResponse(status_code=400, content={"ok": False, "mode": "playwright-quick-agent", "error": "command 不能为空"})
+
+    target_url = normalize_target_url(payload.targetUrl)
+    if target_url != ALLOWED_TARGET_URL:
+        return JSONResponse(status_code=400, content={"ok": False, "mode": "playwright-quick-agent", "error": "targetUrl 不被允许"})
+
+    result = await run_quick_agent(command, target_url)
+    return JSONResponse(status_code=200 if result.get("ok") else 500, content=result)

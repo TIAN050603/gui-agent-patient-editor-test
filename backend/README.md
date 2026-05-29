@@ -141,11 +141,19 @@ POST http://127.0.0.1:8000/api/agent/run
 ```json
 {
   "ok": false,
-  "error": "Browser Use Agent 执行超时，可能是 OpenAI-compatible SDK 或模型调用层卡住"
+  "error": "Browser Use Agent 执行超时，可能卡在 Browser Use + ChatOpenAI/Qwen 层"
 }
 ```
 
-`/api/agent/run` 会把 Browser Use 放到独立 Python 子进程中运行。这样即使 Browser Use、浏览器层或 OpenAI-compatible SDK 出现非协作式阻塞，FastAPI 主进程也可以在 180 秒后强制终止子进程并返回错误。
+`/api/agent/run` 会把 Browser Use 放到独立 Python 子进程中运行。这样即使 Browser Use、浏览器层或 ChatOpenAI/Qwen 层出现非协作式阻塞，FastAPI 主进程也可以在 180 秒后强制终止子进程并返回错误。
+
+4. 如果只想先跑通页面自动操作 demo，可以使用 Playwright Quick Agent：
+
+```text
+POST http://127.0.0.1:8000/api/quick-agent/run
+```
+
+这个接口不调用 Browser Use、不调用 Qwen、不调用 OpenAI SDK，只用 Playwright 直接操作测试页面，优先保证 5 个固定测试任务可以稳定跑通。
 
 启动 Browser Use 前，后端会打印以下调试信息，但不会打印 API Key：
 
@@ -174,6 +182,8 @@ https://tian050603.github.io/gui-agent-patient-editor-test/
 ```text
 Browser Use 后端连接成功。
 ```
+
+如果要先跑通 demo，可把 Agent 模式选择为：`Playwright Quick Agent`。这个模式会调用 `/api/quick-agent/run`，并打开一个可见 Chromium 浏览器窗口执行页面操作。
 
 ## 9. 输入测试任务
 
