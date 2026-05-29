@@ -21,24 +21,24 @@ ALLOWED_TARGET_URL = "https://tian050603.github.io/gui-agent-patient-editor-test
 UTF8_JSON = "application/json; charset=utf-8"
 
 FIELD_SCHEMA: dict[str, dict[str, Any]] = {
-    "name": {"label": "姓名", "selectors": ["#nameInput", '[data-testid="name-input"]', 'input[name="name"]'], "kind": "text"},
-    "gender": {"label": "性别", "selectors": ["#genderSelect", '[data-testid="gender-select"]', 'select[name="gender"]'], "kind": "select", "options": ["男", "女", "其他"]},
-    "age": {"label": "年龄", "selectors": ["#ageInput", '[data-testid="age-input"]', 'input[name="age"]'], "kind": "text"},
-    "birthDate": {"label": "出生日期", "selectors": ["#birthDateInput", '[data-testid="birth-date-input"]', 'input[name="birthDate"]'], "kind": "text"},
-    "phone": {"label": "手机号", "selectors": ["#phoneInput", '[data-testid="phone-input"]', 'input[name="phone"]'], "kind": "text"},
-    "idType": {"label": "证件类型", "selectors": ["#idTypeSelect", '[data-testid="id-type-select"]', 'select[name="idType"]'], "kind": "select", "options": ["身份证", "护照", "港澳通行证", "其他"]},
-    "idNumber": {"label": "证件号码", "selectors": ["#idNumberInput", '[data-testid="id-number-input"]', 'input[name="idNumber"]'], "kind": "text"},
-    "address": {"label": "地址", "selectors": ["#addressInput", '[data-testid="address-input"]', 'input[name="address"]'], "kind": "text"},
-    "emergencyContact": {"label": "紧急联系人", "selectors": ["#emergencyContactInput", '[data-testid="emergency-contact-input"]', 'input[name="emergencyContact"]'], "kind": "text"},
-    "emergencyPhone": {"label": "紧急联系人电话", "selectors": ["#emergencyPhoneInput", '[data-testid="emergency-phone-input"]', 'input[name="emergencyPhone"]'], "kind": "text"},
-    "department": {"label": "就诊科室", "selectors": ["#departmentSelect", '[data-testid="department-select"]', 'select[name="department"]'], "kind": "select", "options": ["呼吸内科", "消化内科", "心血管内科", "神经内科", "骨科", "皮肤科", "儿科", "眼科", "耳鼻喉科", "急诊科"]},
+    "name": {"label": "姓名", "selectors": ["#nameInput", '[data-testid="name-input"]', 'input[name="name"]', '[aria-label="姓名"]'], "kind": "text"},
+    "gender": {"label": "性别", "selectors": ["#genderSelect", '[data-testid="gender-select"]', 'select[name="gender"]', '[aria-label="性别"]'], "kind": "select", "options": ["男", "女", "其他"]},
+    "age": {"label": "年龄", "selectors": ["#ageInput", '[data-testid="age-input"]', 'input[name="age"]', '[aria-label="年龄"]'], "kind": "text"},
+    "birthDate": {"label": "出生日期", "selectors": ["#birthDateInput", '[data-testid="birth-date-input"]', 'input[name="birthDate"]', '[aria-label="出生日期"]'], "kind": "text"},
+    "phone": {"label": "手机号", "selectors": ["#phoneInput", '[data-testid="phone-input"]', 'input[name="phone"]', '[aria-label="手机号"]'], "kind": "text"},
+    "idType": {"label": "证件类型", "selectors": ["#idTypeSelect", '[data-testid="id-type-select"]', 'select[name="idType"]', '[aria-label="证件类型"]'], "kind": "select", "options": ["身份证", "护照", "港澳通行证", "其他"]},
+    "idNumber": {"label": "证件号码", "selectors": ["#idNumberInput", '[data-testid="id-number-input"]', 'input[name="idNumber"]', '[aria-label="证件号码"]'], "kind": "text"},
+    "address": {"label": "地址", "selectors": ["#addressInput", '[data-testid="address-input"]', 'input[name="address"]', '[aria-label="地址"]'], "kind": "text"},
+    "emergencyContact": {"label": "紧急联系人", "selectors": ["#emergencyContactInput", '[data-testid="emergency-contact-input"]', 'input[name="emergencyContact"]', '[aria-label="紧急联系人"]'], "kind": "text"},
+    "emergencyPhone": {"label": "紧急联系人电话", "selectors": ["#emergencyPhoneInput", '[data-testid="emergency-phone-input"]', 'input[name="emergencyPhone"]', '[aria-label="紧急联系人电话"]'], "kind": "text"},
+    "department": {"label": "就诊科室", "selectors": ["#departmentSelect", '[data-testid="department-select"]', 'select[name="department"]', '[aria-label="就诊科室"]'], "kind": "select", "options": ["呼吸内科", "消化内科", "心血管内科", "神经内科", "骨科", "皮肤科", "儿科", "眼科", "耳鼻喉科", "急诊科"]},
     "visitType": {"label": "就诊类型", "selectors": ['input[name="visitType"]'], "kind": "radio", "options": ["初诊", "复诊", "急诊"]},
-    "insuranceType": {"label": "医保类型", "selectors": ["#insuranceTypeSelect", '[data-testid="insurance-type-select"]', 'select[name="insuranceType"]'], "kind": "select", "options": ["城镇职工医保", "城乡居民医保", "商业保险", "自费", "其他"]},
-    "hasAllergy": {"label": "是否有过敏史", "selectors": ["#hasAllergyCheckbox", '[data-testid="has-allergy-checkbox"]', 'input[name="hasAllergy"]'], "kind": "checkbox"},
-    "allergyNote": {"label": "过敏史说明", "selectors": ["#allergyNoteTextarea", '[data-testid="allergy-note-textarea"]', 'textarea[name="allergyNote"]'], "kind": "text"},
-    "medicalHistory": {"label": "既往病史", "selectors": ["#medicalHistoryTextarea", '[data-testid="medical-history-textarea"]', 'textarea[name="medicalHistory"]'], "kind": "text"},
-    "symptoms": {"label": "主诉/症状描述", "selectors": ["#symptomsTextarea", '[data-testid="symptoms-textarea"]', 'textarea[name="symptoms"]'], "kind": "text"},
-    "remark": {"label": "备注", "selectors": ["#remarkTextarea", '[data-testid="remark-textarea"]', 'textarea[name="remark"]'], "kind": "text"},
+    "insuranceType": {"label": "医保类型", "selectors": ["#insuranceTypeSelect", '[data-testid="insurance-type-select"]', 'select[name="insuranceType"]', '[aria-label="医保类型"]'], "kind": "select", "options": ["城镇职工医保", "城乡居民医保", "商业保险", "自费", "其他"]},
+    "hasAllergy": {"label": "是否有过敏史", "selectors": ["#hasAllergyCheckbox", '[data-testid="has-allergy-checkbox"]', 'input[name="hasAllergy"]', '[aria-label="是否有过敏史"]'], "kind": "checkbox"},
+    "allergyNote": {"label": "过敏史说明", "selectors": ["#allergyNoteTextarea", '[data-testid="allergy-note-textarea"]', 'textarea[name="allergyNote"]', '[aria-label="过敏史说明"]'], "kind": "text"},
+    "medicalHistory": {"label": "既往病史", "selectors": ["#medicalHistoryTextarea", '[data-testid="medical-history-textarea"]', 'textarea[name="medicalHistory"]', '[aria-label="既往病史"]'], "kind": "text"},
+    "symptoms": {"label": "主诉/症状描述", "selectors": ["#symptomsTextarea", '[data-testid="symptoms-textarea"]', 'textarea[name="symptoms"]', '[aria-label="主诉/症状描述"]'], "kind": "text"},
+    "remark": {"label": "备注", "selectors": ["#remarkTextarea", '[data-testid="remark-textarea"]', 'textarea[name="remark"]', '[aria-label="备注"]'], "kind": "text"},
 }
 
 PATIENT_NAME_TO_ID = {
@@ -305,10 +305,16 @@ def build_plan_prompt(command: str) -> list[dict[str, str]]:
     ]
 
 
-def call_qwen_for_plan(command: str) -> tuple[dict[str, Any] | None, str, str | None]:
+def call_qwen_for_plan(command: str) -> tuple[dict[str, Any] | None, str, str | None, dict[str, Any]]:
+    llm_info = {
+        "llmUsed": False,
+        "provider": "qwen",
+        "model": get_dashscope_model(),
+        "usage": None,
+    }
     api_key = os.getenv("DASHSCOPE_API_KEY", "").strip()
     if not api_key:
-        return None, "", "未配置 DASHSCOPE_API_KEY"
+        return None, "", "未配置 DASHSCOPE_API_KEY", llm_info
 
     model = get_dashscope_model()
     url = get_dashscope_base_url().rstrip("/") + "/chat/completions"
@@ -326,33 +332,33 @@ def call_qwen_for_plan(command: str) -> tuple[dict[str, Any] | None, str, str | 
             },
             timeout=30,
         )
+        llm_info["llmUsed"] = True
     except requests.Timeout:
-        return None, "", "Qwen 解析任务超时"
+        return None, "", "Qwen 解析任务超时", llm_info
     except Exception as exc:
-        return None, "", "Qwen 解析任务失败：" + str(exc)
+        return None, "", "Qwen 解析任务失败：" + str(exc), llm_info
 
     raw_body = response.text
     if response.status_code >= 400:
-        return None, raw_body, "Qwen 解析任务失败：HTTP " + str(response.status_code)
+        return None, raw_body, "Qwen 解析任务失败：HTTP " + str(response.status_code), llm_info
 
     try:
         data = response.json()
         content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        usage = data.get("usage") or {}
+        llm_info["usage"] = {
+            "prompt_tokens": usage.get("prompt_tokens", 0),
+            "completion_tokens": usage.get("completion_tokens", 0),
+            "total_tokens": usage.get("total_tokens", 0),
+        }
     except Exception as exc:
-        return None, raw_body, "Qwen 返回不是合法响应 JSON：" + str(exc)
+        return None, raw_body, "Qwen 返回不是合法响应 JSON：" + str(exc), llm_info
 
     raw_content = (content or "").strip()
     try:
-        return json.loads(raw_content), raw_content, None
+        return json.loads(raw_content), raw_content, None, llm_info
     except json.JSONDecodeError:
-        start = raw_content.find("{")
-        end = raw_content.rfind("}")
-        if start >= 0 and end > start:
-            try:
-                return json.loads(raw_content[start : end + 1]), raw_content, None
-            except json.JSONDecodeError as exc:
-                return None, raw_content, "Qwen 输出不是合法 JSON：" + str(exc)
-        return None, raw_content, "Qwen 输出不是合法 JSON"
+        return None, raw_content, "Qwen 没有返回合法 JSON", llm_info
 
 
 def validate_universal_plan(plan: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
@@ -407,6 +413,16 @@ async def first_existing_locator(page: Any, selectors: list[str]) -> Any | None:
     return None
 
 
+async def field_locator(page: Any, config: dict[str, Any]) -> Any | None:
+    locator = await first_existing_locator(page, config["selectors"])
+    if locator:
+        return locator
+    by_label = page.get_by_label(config["label"], exact=True)
+    if await by_label.count() > 0:
+        return by_label.first
+    return None
+
+
 async def select_patient(page: Any, patient: dict[str, str], steps: list[str]) -> None:
     patient_id = patient.get("patientId") or ""
     patient_name = patient.get("name") or ""
@@ -451,12 +467,12 @@ async def apply_field_update(page: Any, field: str, value: Any, steps: list[str]
             raise ValueError("未找到单选字段：" + label)
         await locator.check()
     elif kind == "checkbox":
-        locator = await first_existing_locator(page, config["selectors"])
+        locator = await field_locator(page, config)
         if not locator:
             raise ValueError("未找到复选字段：" + label)
         await locator.set_checked(bool(value))
     else:
-        locator = await first_existing_locator(page, config["selectors"])
+        locator = await field_locator(page, config)
         if not locator:
             raise ValueError("未找到字段：" + label)
         if kind == "select":
@@ -627,13 +643,32 @@ async def run_universal_agent(payload: AgentRunRequest) -> dict[str, Any] | JSON
         if target_url != ALLOWED_TARGET_URL:
             return utf8_json({"ok": False, "mode": "universal-form-agent", "error": "targetUrl 不被允许"}, 400)
 
-        plan, raw_response, parse_error = call_qwen_for_plan(command)
+        plan, raw_response, parse_error, llm_info = call_qwen_for_plan(command)
+        if not llm_info.get("llmUsed"):
+            return utf8_json(
+                {
+                    "ok": False,
+                    "mode": "universal-form-agent",
+                    "llmUsed": False,
+                    "provider": "qwen",
+                    "model": llm_info.get("model"),
+                    "error": "Universal Form Agent 必须调用 LLM，但本次没有完成 LLM 调用",
+                    "debug": {"reason": parse_error},
+                },
+                200,
+            )
+
         if parse_error:
             return utf8_json(
                 {
                     "ok": False,
                     "mode": "universal-form-agent",
+                    "llmUsed": True,
+                    "provider": "qwen",
+                    "model": llm_info.get("model"),
+                    "usage": llm_info.get("usage"),
                     "error": parse_error,
+                    "rawResponse": raw_response,
                     "debug": {"rawResponse": raw_response},
                 },
                 200,
@@ -645,6 +680,10 @@ async def run_universal_agent(payload: AgentRunRequest) -> dict[str, Any] | JSON
                 {
                     "ok": False,
                     "mode": "universal-form-agent",
+                    "llmUsed": True,
+                    "provider": "qwen",
+                    "model": llm_info.get("model"),
+                    "usage": llm_info.get("usage"),
                     "error": validation_error,
                     "debug": {"plan": plan, "rawResponse": raw_response},
                 },
@@ -652,6 +691,14 @@ async def run_universal_agent(payload: AgentRunRequest) -> dict[str, Any] | JSON
             )
 
         result = await execute_plan_with_playwright(validated_plan, target_url)
+        result["llmUsed"] = True
+        result["provider"] = "qwen"
+        result["model"] = llm_info.get("model")
+        result["usage"] = llm_info.get("usage") or {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+        }
         return utf8_json(result, 200)
     except Exception as exc:
         return utf8_json(
@@ -716,14 +763,14 @@ async def select_by_selector_or_testid(page: Any, css_selector: str, test_id: st
 async def run_quick_agent(command: str, target_url: str) -> dict[str, Any]:
     parsed = parse_quick_agent_command(command)
     if not parsed["patientId"]:
-        return {"ok": False, "mode": "playwright-quick-agent", "error": "没有识别到支持的就诊人，请输入 P001 到 P005。"}
+        return {"ok": False, "mode": "playwright-smoke-test", "error": "没有识别到支持的就诊人，请输入 P001 到 P005。"}
     if not parsed["updates"]:
-        return {"ok": False, "mode": "playwright-quick-agent", "error": "没有识别到要修改的字段。"}
+        return {"ok": False, "mode": "playwright-smoke-test", "error": "没有识别到要修改的字段。"}
 
     try:
         from playwright.async_api import async_playwright
     except ImportError:
-        return {"ok": False, "mode": "playwright-quick-agent", "error": "Playwright 未安装，请运行 pip install playwright 并执行 playwright install chromium。"}
+        return {"ok": False, "mode": "playwright-smoke-test", "error": "Playwright 未安装，请运行 pip install playwright 并执行 playwright install chromium。"}
 
     steps = []
     browser = None
@@ -762,7 +809,7 @@ async def run_quick_agent(command: str, target_url: str) -> dict[str, Any]:
             preview = await page.locator("#jsonPreview").inner_text(timeout=5000)
             return {
                 "ok": True,
-                "mode": "playwright-quick-agent",
+                "mode": "playwright-smoke-test",
                 "summary": "任务执行完成",
                 "steps": steps,
                 "preview": preview,
@@ -771,7 +818,7 @@ async def run_quick_agent(command: str, target_url: str) -> dict[str, Any]:
         message = str(exc) or exc.__class__.__name__
         if "Executable doesn't exist" in message or "browser" in message.lower():
             message = "浏览器未安装或无法启动，请运行 playwright install chromium。原始错误：" + message
-        return {"ok": False, "mode": "playwright-quick-agent", "error": message}
+        return {"ok": False, "mode": "playwright-smoke-test", "error": message}
     finally:
         if browser:
             try:
@@ -784,11 +831,11 @@ async def run_quick_agent(command: str, target_url: str) -> dict[str, Any]:
 async def run_quick_agent_api(payload: AgentRunRequest) -> dict[str, Any] | JSONResponse:
     command = payload.command.strip()
     if not command:
-        return utf8_json({"ok": False, "mode": "playwright-quick-agent", "error": "command 不能为空"}, 400)
+        return utf8_json({"ok": False, "mode": "playwright-smoke-test", "error": "command 不能为空"}, 400)
 
     target_url = normalize_target_url(payload.targetUrl)
     if target_url != ALLOWED_TARGET_URL:
-        return utf8_json({"ok": False, "mode": "playwright-quick-agent", "error": "targetUrl 不被允许"}, 400)
+        return utf8_json({"ok": False, "mode": "playwright-smoke-test", "error": "targetUrl 不被允许"}, 400)
 
     result = await run_quick_agent(command, target_url)
     return utf8_json(result, 200 if result.get("ok") else 500)

@@ -681,10 +681,10 @@
                 <div class="form-field">
                   <label for="agentModeSelect">Agent 模式选择</label>
                   <select id="agentModeSelect" name="agentModeSelect" data-testid="agent-mode-select" aria-label="Agent 模式选择">
-                    <option value="local">本地规则 Agent</option>
                     <option value="universal" selected>Universal Form Agent</option>
-                    <option value="playwright-quick">Playwright Quick Agent</option>
+                    <option value="playwright-quick">Playwright Smoke Test（只用于调试）</option>
                     <option value="browser-use">Browser Use Agent（实验模式，可能受 Browser Use + 模型兼容性影响）</option>
+                    <option value="local">本地规则 Agent</option>
                   </select>
                 </div>
                 <div class="form-field">
@@ -1509,7 +1509,7 @@
       const backendUrl = getBrowserUseBackendUrl();
       const targetUrl = "https://tian050603.github.io/gui-agent-patient-editor-test/";
 
-      appendChatMessage("agent", "已切换到 Playwright Quick Agent 模式，正在请求本地后端直接操作页面……", "agent");
+      appendChatMessage("agent", "已切换到 Playwright Smoke Test 模式，正在请求本地后端直接操作页面……", "agent");
 
       try {
         const response = await fetch(backendUrl + "/api/quick-agent/run", {
@@ -1527,11 +1527,11 @@
         });
 
         if (!response.ok || !data.ok) {
-          appendChatMessage("agent", formatBackendAgentError("Playwright Quick Agent", data), "error");
+          appendChatMessage("agent", formatBackendAgentError("Playwright Smoke Test", data), "error");
           return;
         }
 
-        appendChatMessage("agent", formatBackendAgentSuccess("Playwright Quick Agent", data), "success");
+        appendChatMessage("agent", formatBackendAgentSuccess("Playwright Smoke Test", data), "success");
       } catch (error) {
         appendChatMessage("agent", "无法连接本地后端，请确认服务已启动。\n错误信息：" + error.message, "error");
       }
@@ -1564,6 +1564,14 @@
       if (data.plan) {
         sections.push("解析出的 plan：\n" + JSON.stringify(data.plan, null, 2));
       }
+      if (data.llmUsed !== undefined || data.provider || data.model || data.usage) {
+        sections.push("LLM 调用信息：\n" + JSON.stringify({
+          llmUsed: data.llmUsed,
+          provider: data.provider,
+          model: data.model,
+          usage: data.usage
+        }, null, 2));
+      }
       if (Array.isArray(data.steps) && data.steps.length > 0) {
         sections.push("执行步骤：\n" + data.steps.map(function (step, index) { return index + 1 + ". " + step; }).join("\n"));
       }
@@ -1580,6 +1588,17 @@
       const sections = [agentName + " 执行失败：\n" + (data.error || "后端返回异常状态。")];
       if (data.plan) {
         sections.push("解析出的 plan：\n" + JSON.stringify(data.plan, null, 2));
+      }
+      if (data.llmUsed !== undefined || data.provider || data.model || data.usage) {
+        sections.push("LLM 调用信息：\n" + JSON.stringify({
+          llmUsed: data.llmUsed,
+          provider: data.provider,
+          model: data.model,
+          usage: data.usage
+        }, null, 2));
+      }
+      if (data.rawResponse) {
+        sections.push("Qwen 原始响应：\n" + data.rawResponse);
       }
       if (data.debug) {
         sections.push("调试信息：\n" + JSON.stringify(data.debug, null, 2));

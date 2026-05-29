@@ -130,6 +130,23 @@ https://tian050603.github.io/gui-agent-patient-editor-test/
 
 如果成功，前端对话框会展示 Qwen 解析出的 plan、Playwright 执行 steps 和页面 JSON 预览。
 
+Universal Form Agent 成功响应中必须包含：
+
+```json
+{
+  "llmUsed": true,
+  "provider": "qwen",
+  "model": "qwen-plus",
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0
+  }
+}
+```
+
+实际运行时 `usage.total_tokens` 应该大于 0，表示这次确实调用了 Qwen。
+
 ## 7. 调试顺序
 
 如果 Browser Use Agent 卡住，请按下面顺序排查：
@@ -197,13 +214,13 @@ POST http://127.0.0.1:8000/api/agent/run
 
 `/api/agent/run` 会把 Browser Use 放到独立 Python 子进程中运行。这样即使 Browser Use、浏览器层或 ChatOpenAI/Qwen 层出现非协作式阻塞，FastAPI 主进程也可以在 180 秒后强制终止子进程并返回错误。
 
-5. 如果只想绕过 Qwen 解析做 fallback，可以使用 Playwright Quick Agent：
+5. 如果只想绕过 Qwen 解析做浏览器链路 smoke test，可以使用 Playwright Smoke Test：
 
 ```text
 POST http://127.0.0.1:8000/api/quick-agent/run
 ```
 
-这个接口不调用 Browser Use、不调用 Qwen、不调用 OpenAI SDK，只用 Playwright 直接操作测试页面。它保留为 fallback，不再作为主路径。
+这个接口不调用 Browser Use、不调用 Qwen、不调用 OpenAI SDK，只用 Playwright 直接操作测试页面。它只用于调试浏览器自动化链路，不是主 Agent。
 
 启动 Browser Use 前，后端会打印以下调试信息，但不会打印 API Key：
 
@@ -237,7 +254,7 @@ Browser Use 后端连接成功。
 
 - `本地规则 Agent`：纯前端规则解析。
 - `Universal Form Agent`：推荐主路径，Qwen 解析 plan，Playwright 执行页面操作。
-- `Playwright Quick Agent`：fallback，不调用 Qwen，保留用于快速排查页面操作问题。
+- `Playwright Smoke Test`：只用于调试，不调用 Qwen，保留用于快速排查页面操作问题。
 - `Browser Use Agent`：实验模式，可能受 Browser Use + 模型兼容性影响。
 
 ## 10. 输入测试任务
