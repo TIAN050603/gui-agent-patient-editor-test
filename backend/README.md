@@ -88,13 +88,78 @@ uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 
 http://127.0.0.1:8000/api/health
 
-## 6. 打开前端页面
+## 6. 调试顺序
+
+如果 Browser Use Agent 卡住，请按下面顺序排查：
+
+1. 先测后端是否启动：
+
+```text
+GET http://127.0.0.1:8000/api/health
+```
+
+预期返回：
+
+```json
+{
+  "ok": true,
+  "message": "Browser Use backend is running"
+}
+```
+
+2. 再测千问 OpenAI-compatible 接口是否能通过 `requests` 直连：
+
+```text
+GET http://127.0.0.1:8000/api/qwen/test
+```
+
+这个接口不会调用 Browser Use，只会请求：
+
+```text
+POST {DASHSCOPE_BASE_URL}/chat/completions
+```
+
+如果成功，预期返回：
+
+```json
+{
+  "ok": true,
+  "provider": "qwen",
+  "model": "qwen-plus",
+  "content": "ok"
+}
+```
+
+3. 最后再测 Browser Use Agent：
+
+```text
+POST http://127.0.0.1:8000/api/agent/run
+```
+
+如果 `/api/qwen/test` 成功但 `/api/agent/run` 卡住，后端会在 180 秒后返回：
+
+```json
+{
+  "ok": false,
+  "error": "Browser Use Agent 执行超时，可能是 OpenAI-compatible SDK 或模型调用层卡住"
+}
+```
+
+启动 Browser Use 前，后端会打印以下调试信息，但不会打印 API Key：
+
+```text
+LLM_PROVIDER=...
+DASHSCOPE_MODEL=...
+DASHSCOPE_BASE_URL=...
+```
+
+## 7. 打开前端页面
 
 打开：
 
 https://tian050603.github.io/gui-agent-patient-editor-test/
 
-## 7. 切换到 Browser Use Agent 模式
+## 8. 切换到 Browser Use Agent 模式
 
 在“自定义任务对话区”中：
 
@@ -108,7 +173,7 @@ https://tian050603.github.io/gui-agent-patient-editor-test/
 Browser Use 后端连接成功。
 ```
 
-## 8. 输入测试任务
+## 9. 输入测试任务
 
 可以使用页面里的快捷示例，也可以手动输入：
 
@@ -131,7 +196,7 @@ POST http://127.0.0.1:8000/api/agent/run
 }
 ```
 
-## 9. 查看执行结果
+## 10. 查看执行结果
 
 Browser Use 会打开目标页面，尝试选择就诊人、编辑字段、点击保存，并返回中文执行总结。前端会把总结和错误信息显示在“自定义任务对话区”的对话历史里。
 

@@ -1,7 +1,9 @@
+import asyncio
 import os
 from pathlib import Path
 from typing import Any
 
+import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,8 +45,48 @@ def normalize_target_url(url: str) -> str:
     return url if url.endswith("/") else url + "/"
 
 
+def get_provider_name() -> str:
+    return os.getenv("LLM_PROVIDER", "qwen").strip().lower()
+
+
+def get_dashscope_base_url() -> str:
+    return (
+        os.getenv("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1").strip()
+        or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    )
+
+
+def get_dashscope_model() -> str:
+    return os.getenv("DASHSCOPE_MODEL", "qwen-plus").strip() or "qwen-plus"
+
+
+def print_runtime_config() -> None:
+    print("LLM_PROVIDER=" + get_provider_name(), flush=True)
+    print("DASHSCOPE_MODEL=" + get_dashscope_model(), flush=True)
+    print("DASHSCOPE_BASE_URL=" + get_dashscope_base_url(), flush=True)
+
+
+def create_chat_openai(ChatOpenAI: Any, kwargs: dict[str, Any]) -> Any:
+    try:
+        import httpx
+
+        sync_client = httpx.Client(trust_env=False, timeout=30)
+        async_client = httpx.AsyncClient(trust_env=False, timeout=30)
+        try:
+            return ChatOpenAI(**kwargs, http_client=sync_client, http_async_client=async_client)
+        except TypeError:
+            sync_client.close()
+            asyncio.create_task(async_client.aclose())
+            # Some ChatOpenAI implementations or browser-use wrappers may not expose
+            # http_client/http_async_client. In that case we still set timeout and
+            # max_retries, but cannot force trust_env=False at the client object level.
+            return ChatOpenAI(**kwargs)
+    except ImportError:
+        return ChatOpenAI(**kwargs)
+
+
 def build_llm() -> Any:
-    provider = os.getenv("LLM_PROVIDER", "qwen").strip().lower()
+    provider = get_provider_name()
 
     try:
         from browser_use import ChatOpenAI
@@ -58,23 +100,29 @@ def build_llm() -> Any:
         api_key = os.getenv("DASHSCOPE_API_KEY", "").strip()
         if not api_key:
             raise RuntimeError("未配置 DASHSCOPE_API_KEY")
-        return ChatOpenAI(
-            model=os.getenv("DASHSCOPE_MODEL", "qwen-plus").strip() or "qwen-plus",
-            api_key=api_key,
-            base_url=os.getenv(
-                "DASHSCOPE_BASE_URL",
-                "https://dashscope.aliyuncs.com/compatible-mode/v1",
-            ).strip()
-            or "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        return create_chat_openai(
+            ChatOpenAI,
+            {
+                "model": get_dashscope_model(),
+                "api_key": api_key,
+                "base_url": get_dashscope_base_url(),
+                "timeout": 30,
+                "max_retries": 0,
+            },
         )
 
     if provider == "openai":
         api_key = os.getenv("OPENAI_API_KEY", "").strip()
         if not api_key:
             raise RuntimeError("未配置 OPENAI_API_KEY")
-        return ChatOpenAI(
-            model=os.getenv("OPENAI_MODEL", "gpt-4o").strip() or "gpt-4o",
-            api_key=api_key,
+        return create_chat_openai(
+            ChatOpenAI,
+            {
+                "model": os.getenv("OPENAI_MODEL", "gpt-4o").strip() or "gpt-4o",
+                "api_key": api_key,
+                "timeout": 30,
+                "max_retries": 0,
+            },
         )
 
     raise RuntimeError("不支持的 LLM_PROVIDER：" + provider)
@@ -132,6 +180,68 @@ async def health() -> dict[str, Any]:
     return {"ok": True, "message": "Browser Use backend is running"}
 
 
+@app.get("/api/qwen/test")
+async def test_qwen() -> dict[str, Any] | JSONResponse:
+    api_key = os.getenv("DASHSCOPE_API_KEY", "").strip()
+    if not api_key:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "未配置 DASHSCOPE_API_KEY"})
+
+    model = get_dashscope_model()
+    base_url = get_dashscope_base_url().rstrip("/")
+    url = base_url + "/chat/completions"
+
+    try:
+        response = requests.post(
+            url,
+            headers={
+                "Authorization": "Bearer " + api_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": "只回复 ok"}],
+            },
+            timeout=20,
+        )
+        if response.status_code >= 400:
+            return JSONResponse(
+                status_code=response.status_code,
+                content={
+                    "ok": False,
+                    "error": "Qwen test failed: HTTP "
+                    + str(response.status_code)
+                    + " "
+                    + response.text[:500],
+                },
+            )
+        data = response.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return {
+            "ok": True,
+            "provider": "qwen",
+            "model": model,
+            "content": content,
+        }
+    except requests.Timeout:
+        return JSONResponse(status_code=504, content={"ok": False, "error": "Qwen test timeout after 20 seconds"})
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"ok": False, "error": "Qwen test failed: " + str(exc)})
+
+
+async def run_browser_use_agent(command: str, target_url: str) -> dict[str, Any]:
+    llm = build_llm()
+    from browser_use import Agent
+
+    agent = Agent(task=build_browser_use_task(command, target_url), llm=llm)
+    result = await agent.run()
+    raw_result = stringify_agent_result(result)
+    return {
+        "ok": True,
+        "summary": raw_result or "Agent 已执行完成，但未返回详细总结。",
+        "rawResult": raw_result,
+    }
+
+
 @app.post("/api/agent/run")
 async def run_agent(payload: AgentRunRequest) -> dict[str, Any]:
     command = payload.command.strip()
@@ -151,15 +261,16 @@ async def run_agent(payload: AgentRunRequest) -> dict[str, Any]:
         )
 
     try:
-        llm = build_llm()
-        agent = Agent(task=build_browser_use_task(command, target_url), llm=llm)
-        result = await agent.run()
-        raw_result = stringify_agent_result(result)
-        return {
-            "ok": True,
-            "summary": raw_result or "Agent 已执行完成，但未返回详细总结。",
-            "rawResult": raw_result,
-        }
+        print_runtime_config()
+        return await asyncio.wait_for(run_browser_use_agent(command, target_url), timeout=180)
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            status_code=504,
+            content={
+                "ok": False,
+                "error": "Browser Use Agent 执行超时，可能是 OpenAI-compatible SDK 或模型调用层卡住",
+            },
+        )
     except RuntimeError as exc:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(exc)})
     except Exception as exc:
