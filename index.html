@@ -1451,7 +1451,7 @@
         });
 
         if (!response.ok || !data.ok) {
-          appendChatMessage("agent", "Agent 执行失败：\n" + (data.error || "后端返回异常状态。"), "error");
+          appendChatMessage("agent", "Agent 执行失败：\n" + (data.error || "后端返回异常状态。") + (data.debugLog ? "\n\n调试日志：\n" + data.debugLog : ""), "error");
           return;
         }
 

@@ -145,6 +145,8 @@ POST http://127.0.0.1:8000/api/agent/run
 }
 ```
 
+`/api/agent/run` 会把 Browser Use 放到独立 Python 子进程中运行。这样即使 Browser Use、浏览器层或 OpenAI-compatible SDK 出现非协作式阻塞，FastAPI 主进程也可以在 180 秒后强制终止子进程并返回错误。
+
 启动 Browser Use 前，后端会打印以下调试信息，但不会打印 API Key：
 
 ```text

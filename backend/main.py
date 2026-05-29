@@ -1,5 +1,9 @@
 import asyncio
+import json
 import os
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -228,18 +232,77 @@ async def test_qwen() -> dict[str, Any] | JSONResponse:
         return JSONResponse(status_code=500, content={"ok": False, "error": "Qwen test failed: " + str(exc)})
 
 
-async def run_browser_use_agent(command: str, target_url: str) -> dict[str, Any]:
-    llm = build_llm()
-    from browser_use import Agent
+def sanitize_log(text: str) -> str:
+    if not text:
+        return ""
+    secrets = [
+        os.getenv("DASHSCOPE_API_KEY", "").strip(),
+        os.getenv("OPENAI_API_KEY", "").strip(),
+    ]
+    sanitized = text
+    for secret in secrets:
+        if secret:
+            sanitized = sanitized.replace(secret, "***REDACTED***")
+    return sanitized[-4000:]
 
-    agent = Agent(task=build_browser_use_task(command, target_url), llm=llm)
-    result = await agent.run()
-    raw_result = stringify_agent_result(result)
-    return {
-        "ok": True,
-        "summary": raw_result or "Agent 已执行完成，但未返回详细总结。",
-        "rawResult": raw_result,
-    }
+
+def run_browser_use_agent_subprocess(command: str, target_url: str, timeout_seconds: int = 180) -> dict[str, Any]:
+    worker_path = BACKEND_DIR / "agent_worker.py"
+    with tempfile.TemporaryDirectory(prefix="browser-use-agent-") as temp_dir:
+        input_path = Path(temp_dir) / "input.json"
+        output_path = Path(temp_dir) / "output.json"
+        input_path.write_text(
+            json.dumps(
+                {
+                    "command": command,
+                    "targetUrl": target_url,
+                    "outputPath": str(output_path),
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+        process = subprocess.Popen(
+            [sys.executable, str(worker_path), str(input_path)],
+            cwd=str(BACKEND_DIR),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+
+        try:
+            stdout, stderr = process.communicate(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate(timeout=10)
+            return {
+                "ok": False,
+                "error": "Browser Use Agent 执行超时，可能是 OpenAI-compatible SDK 或模型调用层卡住",
+                "debugLog": sanitize_log((stdout or "") + "\n" + (stderr or "")),
+            }
+
+        debug_log = sanitize_log((stdout or "") + "\n" + (stderr or ""))
+        if output_path.exists():
+            try:
+                result = json.loads(output_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                return {
+                    "ok": False,
+                    "error": "Agent worker 返回了无法解析的 JSON：" + str(exc),
+                    "debugLog": debug_log,
+                }
+            if debug_log and "debugLog" not in result:
+                result["debugLog"] = debug_log
+            return result
+
+        return {
+            "ok": False,
+            "error": "Agent worker 未生成结果，退出码：" + str(process.returncode),
+            "debugLog": debug_log,
+        }
 
 
 @app.post("/api/agent/run")
@@ -253,24 +316,10 @@ async def run_agent(payload: AgentRunRequest) -> dict[str, Any]:
         return JSONResponse(status_code=400, content={"ok": False, "error": "targetUrl 不被允许"})
 
     try:
-        from browser_use import Agent
-    except ImportError as exc:
-        return JSONResponse(
-            status_code=500,
-            content={"ok": False, "error": "Browser Use 未安装，请先安装 backend 依赖。"},
-        )
-
-    try:
         print_runtime_config()
-        return await asyncio.wait_for(run_browser_use_agent(command, target_url), timeout=180)
-    except asyncio.TimeoutError:
-        return JSONResponse(
-            status_code=504,
-            content={
-                "ok": False,
-                "error": "Browser Use Agent 执行超时，可能是 OpenAI-compatible SDK 或模型调用层卡住",
-            },
-        )
+        result = await asyncio.to_thread(run_browser_use_agent_subprocess, command, target_url, 180)
+        status_code = 200 if result.get("ok") else 504 if "超时" in result.get("error", "") else 500
+        return JSONResponse(status_code=status_code, content=result)
     except RuntimeError as exc:
         return JSONResponse(status_code=400, content={"ok": False, "error": str(exc)})
     except Exception as exc:
