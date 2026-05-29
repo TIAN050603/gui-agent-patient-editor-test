@@ -101,6 +101,56 @@
       margin-bottom: 20px;
     }
 
+    .patient-table-card {
+      margin-bottom: 20px;
+    }
+
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .patient-table {
+      width: 100%;
+      min-width: 1880px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .patient-table th,
+    .patient-table td {
+      padding: 12px 12px;
+      border-bottom: 1px solid #e5edf6;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    .patient-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #eaf1fb;
+      color: #475569;
+      font-weight: 700;
+    }
+
+    .patient-table tbody tr {
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+
+    .patient-table tbody tr:hover {
+      background: #f8fbff;
+    }
+
+    .patient-table tbody tr.active-row {
+      background: #dbeafe;
+    }
+
     .form-section {
       margin-bottom: 24px;
       padding-bottom: 20px;
@@ -476,6 +526,44 @@
         <select id="patientSelect" name="patientSelect" data-testid="patient-select" aria-label="选择已有就诊人">
         </select>
         <div class="hint" id="selectedPatientHint" data-testid="selected-patient-hint" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card patient-table-card" aria-labelledby="patientTableTitle">
+      <div class="card-header">
+        <h2 id="patientTableTitle">全部就诊人信息表</h2>
+        <p>展示当前内存中的 20 个虚拟就诊人信息。点击任意行可加载到编辑表单。</p>
+      </div>
+      <div class="card-body">
+        <div class="table-scroll" aria-label="全部就诊人信息表格滚动区域">
+          <table id="patientInfoTable" class="patient-table" data-testid="patient-info-table" aria-label="全部就诊人信息表">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>就诊人ID</th>
+                <th>姓名</th>
+                <th>性别</th>
+                <th>年龄</th>
+                <th>出生日期</th>
+                <th>手机号</th>
+                <th>证件类型</th>
+                <th>证件号码</th>
+                <th>地址</th>
+                <th>紧急联系人</th>
+                <th>紧急联系人电话</th>
+                <th>就诊科室</th>
+                <th>就诊类型</th>
+                <th>医保类型</th>
+                <th>过敏史</th>
+                <th>过敏史说明</th>
+                <th>既往病史</th>
+                <th>主诉/症状描述</th>
+                <th>备注</th>
+              </tr>
+            </thead>
+            <tbody id="patientTableBody" data-testid="patient-table-body"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -1189,6 +1277,7 @@
       errorMessage: document.getElementById("errorMessage"),
       successMessage: document.getElementById("successMessage"),
       jsonPreview: document.getElementById("jsonPreview"),
+      patientTableBody: document.getElementById("patientTableBody"),
       agentChatHistory: document.getElementById("agentChatHistory"),
       agentCommandInput: document.getElementById("agentCommandInput"),
       agentMode: document.getElementById("agentModeSelect"),
@@ -1219,9 +1308,11 @@
       currentPatientId = fields.patientSelect.value;
       loadPatientToForm(getCurrentPatient());
       clearMessages();
+      renderPatientsTable();
     });
 
     renderPatientOptions();
+    renderPatientsTable();
     fields.patientSelect.value = currentPatientId;
     fields.agentMode.value = "universal";
     loadPatientToForm(getCurrentPatient());
@@ -1239,6 +1330,59 @@
         option.setAttribute("data-testid", "patient-option-" + patient.patientId.toLowerCase());
         fields.patientSelect.appendChild(option);
       });
+    }
+
+    function renderPatientsTable() {
+      fields.patientTableBody.innerHTML = "";
+      patients.forEach(function (patient, index) {
+        const row = document.createElement("tr");
+        row.dataset.patientId = patient.patientId;
+        row.setAttribute("data-testid", "patient-table-row-" + patient.patientId.toLowerCase());
+        if (patient.patientId === currentPatientId) {
+          row.classList.add("active-row");
+        }
+        row.innerHTML = [
+          index + 1,
+          patient.patientId,
+          patient.name,
+          patient.gender,
+          patient.age,
+          patient.birthDate,
+          patient.phone,
+          patient.idType,
+          patient.idNumber,
+          patient.address,
+          patient.emergencyContact,
+          patient.emergencyPhone,
+          patient.department,
+          patient.visitType,
+          patient.insuranceType,
+          patient.hasAllergy ? "有" : "无",
+          patient.allergyNote || "-",
+          patient.medicalHistory || "-",
+          patient.symptoms || "-",
+          patient.remark || "-"
+        ].map(function (value) {
+          return "<td>" + escapeHtml(String(value ?? "")) + "</td>";
+        }).join("");
+        row.addEventListener("click", function () {
+          currentPatientId = patient.patientId;
+          fields.patientSelect.value = currentPatientId;
+          loadPatientToForm(getCurrentPatient());
+          clearMessages();
+          renderPatientsTable();
+        });
+        fields.patientTableBody.appendChild(row);
+      });
+    }
+
+    function escapeHtml(value) {
+      return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
     }
 
     function getCurrentPatient() {
@@ -1372,6 +1516,7 @@
       patients[index] = formData;
       renderPatientOptions();
       fields.patientSelect.value = currentPatientId;
+      renderPatientsTable();
       fields.selectedPatientHint.textContent = "当前就诊人：" + formData.patientId + " - " + formData.name + " - " + formData.department;
       showSuccess("保存成功。");
       fields.jsonPreview.textContent = JSON.stringify(formData, null, 2);
@@ -1393,6 +1538,7 @@
       renderPatientOptions();
       fields.patientSelect.value = currentPatientId;
       loadPatientToForm(original);
+      renderPatientsTable();
       fields.jsonPreview.textContent = "{}";
       showSuccess("已重置当前就诊人为初始数据。");
     }
@@ -1465,6 +1611,12 @@
 
         if (!response.ok || !data.ok) {
           appendChatMessage("agent", formatBackendAgentError("Universal Form Agent", data), "error");
+          return;
+        }
+
+        const localApplyResult = applyUniversalPlanToCurrentPage(data.plan);
+        if (!localApplyResult.success) {
+          appendChatMessage("agent", "Universal Form Agent 后端执行完成，但同步到当前页面失败：\n" + localApplyResult.message, "error");
           return;
         }
 
@@ -1557,6 +1709,55 @@
 
     function getBrowserUseBackendUrl() {
       return (fields.browserUseBackendUrl.value || "http://127.0.0.1:8000").trim().replace(/\/+$/, "");
+    }
+
+    function applyUniversalPlanToCurrentPage(plan) {
+      if (!plan || !plan.patient || !plan.updates) {
+        return { success: false, message: "后端没有返回可执行的 plan。" };
+      }
+
+      const patient = findPatientForPlan(plan.patient);
+      if (!patient) {
+        return { success: false, message: "当前页面找不到 plan 指定的就诊人。" };
+      }
+
+      currentPatientId = patient.patientId;
+      fields.patientSelect.value = currentPatientId;
+      fields.patientSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+      Object.keys(plan.updates).forEach(function (fieldKey) {
+        const value = plan.updates[fieldKey];
+        if (value !== null && value !== undefined && value !== "") {
+          updateFormField(fieldKey, value);
+        }
+      });
+
+      if (plan.save) {
+        document.getElementById("saveButton").click();
+        if (fields.errorMessage.classList.contains("show")) {
+          return { success: false, message: "当前页面保存失败：" + fields.errorMessage.textContent };
+        }
+      } else {
+        renderPatientsTable();
+      }
+
+      return { success: true, message: "已同步到当前页面。" };
+    }
+
+    function findPatientForPlan(patientPlan) {
+      const patientId = (patientPlan.patientId || "").toUpperCase();
+      if (patientId) {
+        const byId = patients.find(function (patient) {
+          return patient.patientId === patientId;
+        });
+        if (byId) {
+          return byId;
+        }
+      }
+      const name = patientPlan.name || "";
+      return patients.find(function (patient) {
+        return patient.name === name;
+      });
     }
 
     function formatBackendAgentSuccess(agentName, data) {
@@ -1927,7 +2128,11 @@
         return { success: true, displayValue: value ? "有过敏史" : "无过敏史" };
       }
 
-      return { success: false, message: "没有识别到要修改的字段。" };
+      if (fieldKey === "patientId") {
+        return { success: true, displayValue: value };
+      }
+
+      return { success: false, message: "没有识别到要修改的字段：" + fieldKey + "。" };
     }
 
     function dispatchAgentInputEvents(element) {
