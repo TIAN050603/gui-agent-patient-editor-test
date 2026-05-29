@@ -682,8 +682,9 @@
                   <label for="agentModeSelect">Agent 模式选择</label>
                   <select id="agentModeSelect" name="agentModeSelect" data-testid="agent-mode-select" aria-label="Agent 模式选择">
                     <option value="local">本地规则 Agent</option>
-                    <option value="browser-use">Browser Use Agent</option>
+                    <option value="universal" selected>Universal Form Agent</option>
                     <option value="playwright-quick">Playwright Quick Agent</option>
+                    <option value="browser-use">Browser Use Agent（实验模式，可能受 Browser Use + 模型兼容性影响）</option>
                   </select>
                 </div>
                 <div class="form-field">
@@ -1412,6 +1413,11 @@
 
       appendChatMessage("user", command, "user");
 
+      if (fields.agentMode.value === "universal") {
+        await executeUniversalFormCommand(command);
+        return;
+      }
+
       if (fields.agentMode.value === "browser-use") {
         await executeBrowserUseCommand(command);
         return;
@@ -1433,6 +1439,38 @@
       appendChatMessage("agent", formatAgentPlan(plan), "plan");
       const result = applyAgentPlan(plan);
       appendChatMessage("agent", result.message, result.success ? "success" : "error");
+    }
+
+    async function executeUniversalFormCommand(command) {
+      const backendUrl = getBrowserUseBackendUrl();
+      const targetUrl = "https://tian050603.github.io/gui-agent-patient-editor-test/";
+
+      appendChatMessage("agent", "已切换到 Universal Form Agent 模式，正在请求 Qwen 解析任务并用 Playwright 执行页面操作……", "agent");
+
+      try {
+        const response = await fetch(backendUrl + "/api/universal-agent/run", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json; charset=utf-8"
+          },
+          body: JSON.stringify({
+            command: command,
+            targetUrl: targetUrl
+          })
+        });
+        const data = await response.json().catch(function () {
+          return {};
+        });
+
+        if (!response.ok || !data.ok) {
+          appendChatMessage("agent", formatBackendAgentError("Universal Form Agent", data), "error");
+          return;
+        }
+
+        appendChatMessage("agent", formatBackendAgentSuccess("Universal Form Agent", data), "success");
+      } catch (error) {
+        appendChatMessage("agent", "无法连接本地后端，请确认服务已启动。\n错误信息：" + error.message, "error");
+      }
     }
 
     async function executeBrowserUseCommand(command) {
@@ -1457,11 +1495,11 @@
         });
 
         if (!response.ok || !data.ok) {
-          appendChatMessage("agent", "Agent 执行失败：\n" + (data.error || "后端返回异常状态。") + (data.debugLog ? "\n\n调试日志：\n" + data.debugLog : ""), "error");
+          appendChatMessage("agent", formatBackendAgentError("Browser Use Agent", data), "error");
           return;
         }
 
-        appendChatMessage("agent", "Browser Use Agent 执行完成。\n\n执行总结：\n" + (data.summary || "后端未返回总结。") + "\n\n原始结果：\n" + (data.rawResult || ""), "success");
+        appendChatMessage("agent", formatBackendAgentSuccess("Browser Use Agent", data), "success");
       } catch (error) {
         appendChatMessage("agent", "无法连接 Browser Use 后端，请确认本地服务已启动。\n错误信息：" + error.message, "error");
       }
@@ -1489,18 +1527,11 @@
         });
 
         if (!response.ok || !data.ok) {
-          appendChatMessage("agent", "Playwright Quick Agent 执行失败：\n" + (data.error || "后端返回异常状态。"), "error");
+          appendChatMessage("agent", formatBackendAgentError("Playwright Quick Agent", data), "error");
           return;
         }
 
-        appendChatMessage(
-          "agent",
-          "Playwright Quick Agent 执行完成。\n\n执行步骤：\n" +
-            (data.steps || []).map(function (step, index) { return index + 1 + ". " + step; }).join("\n") +
-            "\n\n页面 JSON 预览：\n" +
-            (data.preview || ""),
-          "success"
-        );
+        appendChatMessage("agent", formatBackendAgentSuccess("Playwright Quick Agent", data), "success");
       } catch (error) {
         appendChatMessage("agent", "无法连接本地后端，请确认服务已启动。\n错误信息：" + error.message, "error");
       }
@@ -1525,6 +1556,38 @@
 
     function getBrowserUseBackendUrl() {
       return (fields.browserUseBackendUrl.value || "http://127.0.0.1:8000").trim().replace(/\/+$/, "");
+    }
+
+    function formatBackendAgentSuccess(agentName, data) {
+      const sections = [agentName + " 执行完成。"];
+      sections.push("执行总结：\n" + (data.summary || "任务执行完成"));
+      if (data.plan) {
+        sections.push("解析出的 plan：\n" + JSON.stringify(data.plan, null, 2));
+      }
+      if (Array.isArray(data.steps) && data.steps.length > 0) {
+        sections.push("执行步骤：\n" + data.steps.map(function (step, index) { return index + 1 + ". " + step; }).join("\n"));
+      }
+      if (data.preview) {
+        sections.push("页面 JSON 预览：\n" + data.preview);
+      }
+      if (data.rawResult) {
+        sections.push("原始结果：\n" + data.rawResult);
+      }
+      return sections.join("\n\n");
+    }
+
+    function formatBackendAgentError(agentName, data) {
+      const sections = [agentName + " 执行失败：\n" + (data.error || "后端返回异常状态。")];
+      if (data.plan) {
+        sections.push("解析出的 plan：\n" + JSON.stringify(data.plan, null, 2));
+      }
+      if (data.debug) {
+        sections.push("调试信息：\n" + JSON.stringify(data.debug, null, 2));
+      }
+      if (data.debugLog) {
+        sections.push("调试日志：\n" + data.debugLog);
+      }
+      return sections.join("\n\n");
     }
 
     function parseAgentCommand(commandText) {

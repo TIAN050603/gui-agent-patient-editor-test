@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import asyncio
 import json
 import os
@@ -17,6 +18,36 @@ from pydantic import BaseModel, Field
 
 BACKEND_DIR = Path(__file__).resolve().parent
 ALLOWED_TARGET_URL = "https://tian050603.github.io/gui-agent-patient-editor-test/"
+UTF8_JSON = "application/json; charset=utf-8"
+
+FIELD_SCHEMA: dict[str, dict[str, Any]] = {
+    "name": {"label": "姓名", "selectors": ["#nameInput", '[data-testid="name-input"]', 'input[name="name"]'], "kind": "text"},
+    "gender": {"label": "性别", "selectors": ["#genderSelect", '[data-testid="gender-select"]', 'select[name="gender"]'], "kind": "select", "options": ["男", "女", "其他"]},
+    "age": {"label": "年龄", "selectors": ["#ageInput", '[data-testid="age-input"]', 'input[name="age"]'], "kind": "text"},
+    "birthDate": {"label": "出生日期", "selectors": ["#birthDateInput", '[data-testid="birth-date-input"]', 'input[name="birthDate"]'], "kind": "text"},
+    "phone": {"label": "手机号", "selectors": ["#phoneInput", '[data-testid="phone-input"]', 'input[name="phone"]'], "kind": "text"},
+    "idType": {"label": "证件类型", "selectors": ["#idTypeSelect", '[data-testid="id-type-select"]', 'select[name="idType"]'], "kind": "select", "options": ["身份证", "护照", "港澳通行证", "其他"]},
+    "idNumber": {"label": "证件号码", "selectors": ["#idNumberInput", '[data-testid="id-number-input"]', 'input[name="idNumber"]'], "kind": "text"},
+    "address": {"label": "地址", "selectors": ["#addressInput", '[data-testid="address-input"]', 'input[name="address"]'], "kind": "text"},
+    "emergencyContact": {"label": "紧急联系人", "selectors": ["#emergencyContactInput", '[data-testid="emergency-contact-input"]', 'input[name="emergencyContact"]'], "kind": "text"},
+    "emergencyPhone": {"label": "紧急联系人电话", "selectors": ["#emergencyPhoneInput", '[data-testid="emergency-phone-input"]', 'input[name="emergencyPhone"]'], "kind": "text"},
+    "department": {"label": "就诊科室", "selectors": ["#departmentSelect", '[data-testid="department-select"]', 'select[name="department"]'], "kind": "select", "options": ["呼吸内科", "消化内科", "心血管内科", "神经内科", "骨科", "皮肤科", "儿科", "眼科", "耳鼻喉科", "急诊科"]},
+    "visitType": {"label": "就诊类型", "selectors": ['input[name="visitType"]'], "kind": "radio", "options": ["初诊", "复诊", "急诊"]},
+    "insuranceType": {"label": "医保类型", "selectors": ["#insuranceTypeSelect", '[data-testid="insurance-type-select"]', 'select[name="insuranceType"]'], "kind": "select", "options": ["城镇职工医保", "城乡居民医保", "商业保险", "自费", "其他"]},
+    "hasAllergy": {"label": "是否有过敏史", "selectors": ["#hasAllergyCheckbox", '[data-testid="has-allergy-checkbox"]', 'input[name="hasAllergy"]'], "kind": "checkbox"},
+    "allergyNote": {"label": "过敏史说明", "selectors": ["#allergyNoteTextarea", '[data-testid="allergy-note-textarea"]', 'textarea[name="allergyNote"]'], "kind": "text"},
+    "medicalHistory": {"label": "既往病史", "selectors": ["#medicalHistoryTextarea", '[data-testid="medical-history-textarea"]', 'textarea[name="medicalHistory"]'], "kind": "text"},
+    "symptoms": {"label": "主诉/症状描述", "selectors": ["#symptomsTextarea", '[data-testid="symptoms-textarea"]', 'textarea[name="symptoms"]'], "kind": "text"},
+    "remark": {"label": "备注", "selectors": ["#remarkTextarea", '[data-testid="remark-textarea"]', 'textarea[name="remark"]'], "kind": "text"},
+}
+
+PATIENT_NAME_TO_ID = {
+    "张伟": "P001",
+    "李娜": "P002",
+    "王强": "P003",
+    "陈敏": "P004",
+    "赵磊": "P005",
+}
 
 load_dotenv(BACKEND_DIR / ".env")
 
@@ -40,6 +71,22 @@ app.add_middleware(
 class AgentRunRequest(BaseModel):
     command: str = Field(..., description="用户输入的自然语言任务")
     targetUrl: str = Field(..., description="允许 Browser Use 访问的目标页面 URL")
+
+
+class Utf8JSONResponse(JSONResponse):
+    media_type = UTF8_JSON
+
+    def render(self, content: Any) -> bytes:
+        return json.dumps(
+            content,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+
+def utf8_json(content: dict[str, Any], status_code: int = 200) -> JSONResponse:
+    return Utf8JSONResponse(status_code=status_code, content=content)
 
 
 def normalize_target_url(url: str) -> str:
@@ -180,15 +227,15 @@ def stringify_agent_result(result: Any) -> str:
 
 
 @app.get("/api/health")
-async def health() -> dict[str, Any]:
-    return {"ok": True, "message": "Browser Use backend is running"}
+async def health() -> JSONResponse:
+    return utf8_json({"ok": True, "message": "Browser Use backend is running"})
 
 
 @app.get("/api/qwen/test")
 async def test_qwen() -> dict[str, Any] | JSONResponse:
     api_key = os.getenv("DASHSCOPE_API_KEY", "").strip()
     if not api_key:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "未配置 DASHSCOPE_API_KEY"})
+        return utf8_json({"ok": False, "error": "未配置 DASHSCOPE_API_KEY"}, 400)
 
     model = get_dashscope_model()
     base_url = get_dashscope_base_url().rstrip("/")
@@ -208,28 +255,268 @@ async def test_qwen() -> dict[str, Any] | JSONResponse:
             timeout=20,
         )
         if response.status_code >= 400:
-            return JSONResponse(
-                status_code=response.status_code,
-                content={
+            return utf8_json(
+                {
                     "ok": False,
                     "error": "Qwen test failed: HTTP "
                     + str(response.status_code)
                     + " "
                     + response.text[:500],
                 },
+                response.status_code,
             )
         data = response.json()
         content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        return {
-            "ok": True,
-            "provider": "qwen",
-            "model": model,
-            "content": content,
-        }
+        return utf8_json({"ok": True, "provider": "qwen", "model": model, "content": content})
     except requests.Timeout:
-        return JSONResponse(status_code=504, content={"ok": False, "error": "Qwen test timeout after 20 seconds"})
+        return utf8_json({"ok": False, "error": "Qwen test timeout after 20 seconds"}, 504)
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"ok": False, "error": "Qwen test failed: " + str(exc)})
+        return utf8_json({"ok": False, "error": "Qwen test failed: " + str(exc)}, 500)
+
+
+def build_plan_prompt(command: str) -> list[dict[str, str]]:
+    schema = {
+        "patient": {"patientId": "P001", "name": "张伟"},
+        "updates": {field: None for field in FIELD_SCHEMA},
+        "save": True,
+        "intent": "edit_patient",
+        "confidence": 0.95,
+    }
+    system_prompt = (
+        "你是一个医疗测试表单任务解析器。你只把用户中文任务解析成 JSON plan。"
+        "只输出合法 JSON，不要输出 markdown，不要输出解释。"
+        "字段只能使用给定 schema 中的 key。未修改字段必须为 null。"
+        "save 只有在用户明确要求保存、提交、点击保存、然后保存时才为 true；用户说不要保存时必须为 false。"
+        "可选值必须严格使用这些中文值："
+        "gender=男/女/其他；idType=身份证/护照/港澳通行证/其他；"
+        "department=呼吸内科/消化内科/心血管内科/神经内科/骨科/皮肤科/儿科/眼科/耳鼻喉科/急诊科；"
+        "visitType=初诊/复诊/急诊；insuranceType=城镇职工医保/城乡居民医保/商业保险/自费/其他；"
+        "hasAllergy=true/false。"
+    )
+    user_prompt = (
+        "请解析这个任务：\n"
+        + command
+        + "\n\n严格输出这个 JSON schema，字段齐全，未修改字段填 null：\n"
+        + json.dumps(schema, ensure_ascii=False, indent=2)
+    )
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+
+def call_qwen_for_plan(command: str) -> tuple[dict[str, Any] | None, str, str | None]:
+    api_key = os.getenv("DASHSCOPE_API_KEY", "").strip()
+    if not api_key:
+        return None, "", "未配置 DASHSCOPE_API_KEY"
+
+    model = get_dashscope_model()
+    url = get_dashscope_base_url().rstrip("/") + "/chat/completions"
+    try:
+        response = requests.post(
+            url,
+            headers={
+                "Authorization": "Bearer " + api_key,
+                "Content-Type": "application/json; charset=utf-8",
+            },
+            json={
+                "model": model,
+                "messages": build_plan_prompt(command),
+                "temperature": 0,
+            },
+            timeout=30,
+        )
+    except requests.Timeout:
+        return None, "", "Qwen 解析任务超时"
+    except Exception as exc:
+        return None, "", "Qwen 解析任务失败：" + str(exc)
+
+    raw_body = response.text
+    if response.status_code >= 400:
+        return None, raw_body, "Qwen 解析任务失败：HTTP " + str(response.status_code)
+
+    try:
+        data = response.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    except Exception as exc:
+        return None, raw_body, "Qwen 返回不是合法响应 JSON：" + str(exc)
+
+    raw_content = (content or "").strip()
+    try:
+        return json.loads(raw_content), raw_content, None
+    except json.JSONDecodeError:
+        start = raw_content.find("{")
+        end = raw_content.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                return json.loads(raw_content[start : end + 1]), raw_content, None
+            except json.JSONDecodeError as exc:
+                return None, raw_content, "Qwen 输出不是合法 JSON：" + str(exc)
+        return None, raw_content, "Qwen 输出不是合法 JSON"
+
+
+def validate_universal_plan(plan: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    if not isinstance(plan, dict):
+        return None, "Qwen plan 不是 JSON object"
+
+    patient = plan.get("patient") if isinstance(plan.get("patient"), dict) else {}
+    patient_id = (patient.get("patientId") or "").strip().upper()
+    patient_name = (patient.get("name") or "").strip()
+    if not patient_id and patient_name:
+        patient_id = PATIENT_NAME_TO_ID.get(patient_name, "")
+    if not patient_id and not patient_name:
+        return None, "patientId 或 name 至少需要一个"
+    if patient_id and not patient_id.startswith("P"):
+        return None, "patientId 格式不正确：" + patient_id
+
+    raw_updates = plan.get("updates")
+    if not isinstance(raw_updates, dict):
+        return None, "updates 必须是 JSON object"
+
+    normalized_updates: dict[str, Any] = {}
+    for field, value in raw_updates.items():
+        if value is None or value == "":
+            continue
+        if field not in FIELD_SCHEMA:
+            return None, "不支持的字段：" + str(field)
+        config = FIELD_SCHEMA[field]
+        if "options" in config and value not in config["options"]:
+            return None, config["label"] + " 的字段值不在可选范围内：" + str(value)
+        if config["kind"] == "checkbox" and not isinstance(value, bool):
+            return None, config["label"] + " 必须是 boolean"
+        normalized_updates[field] = value
+
+    if not normalized_updates:
+        return None, "updates 中至少需要一个非 null 字段"
+
+    validated = {
+        "patient": {"patientId": patient_id, "name": patient_name},
+        "updates": {field: normalized_updates.get(field) for field in FIELD_SCHEMA},
+        "save": bool(plan.get("save")),
+        "intent": "edit_patient",
+        "confidence": plan.get("confidence", 0),
+    }
+    return validated, None
+
+
+async def first_existing_locator(page: Any, selectors: list[str]) -> Any | None:
+    for selector in selectors:
+        locator = page.locator(selector)
+        if await locator.count() > 0:
+            return locator.first
+    return None
+
+
+async def select_patient(page: Any, patient: dict[str, str], steps: list[str]) -> None:
+    patient_id = patient.get("patientId") or ""
+    patient_name = patient.get("name") or ""
+    if not patient_id and patient_name:
+        patient_id = PATIENT_NAME_TO_ID.get(patient_name, "")
+
+    locator = await first_existing_locator(page, ["#patientSelect", '[data-testid="patient-select"]', 'select[name="patientSelect"]'])
+    if not locator:
+        raise ValueError("未找到就诊人选择控件")
+
+    if patient_id:
+        await locator.select_option(patient_id)
+        steps.append("已选择就诊人 " + patient_id + ((" " + patient_name) if patient_name else ""))
+        return
+
+    selected_id = await page.evaluate(
+        """(name) => {
+            const select = document.querySelector('#patientSelect,[data-testid="patient-select"],select[name="patientSelect"]');
+            if (!select) return '';
+            const option = Array.from(select.options).find((item) => item.textContent.includes(name));
+            if (!option) return '';
+            select.value = option.value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            return option.value;
+        }""",
+        patient_name,
+    )
+    if not selected_id:
+        raise ValueError("无法根据姓名找到就诊人：" + patient_name)
+    patient["patientId"] = selected_id
+    steps.append("已选择就诊人 " + selected_id + " " + patient_name)
+
+
+async def apply_field_update(page: Any, field: str, value: Any, steps: list[str]) -> None:
+    config = FIELD_SCHEMA[field]
+    label = config["label"]
+    kind = config["kind"]
+
+    if kind == "radio":
+        locator = await first_existing_locator(page, [f'input[name="visitType"][value="{value}"]', f'[aria-label="就诊类型 {value}"]'])
+        if not locator:
+            raise ValueError("未找到单选字段：" + label)
+        await locator.check()
+    elif kind == "checkbox":
+        locator = await first_existing_locator(page, config["selectors"])
+        if not locator:
+            raise ValueError("未找到复选字段：" + label)
+        await locator.set_checked(bool(value))
+    else:
+        locator = await first_existing_locator(page, config["selectors"])
+        if not locator:
+            raise ValueError("未找到字段：" + label)
+        if kind == "select":
+            await locator.select_option(str(value))
+        else:
+            await locator.fill(str(value))
+
+    display_value = "是" if value is True else "否" if value is False else str(value)
+    steps.append("已修改" + label + "为 " + display_value)
+
+
+async def execute_plan_with_playwright(plan: dict[str, Any], target_url: str) -> dict[str, Any]:
+    try:
+        from playwright.async_api import async_playwright
+    except ImportError:
+        return {"ok": False, "mode": "universal-form-agent", "error": "Playwright 未安装，请运行 pip install playwright 并执行 playwright install chromium。"}
+
+    steps = ["已解析任务"]
+    browser = None
+    try:
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch(headless=False)
+            page = await browser.new_page()
+            await page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
+            steps.append("已打开页面")
+
+            await select_patient(page, plan["patient"], steps)
+            for field, value in plan["updates"].items():
+                if value is not None:
+                    await apply_field_update(page, field, value, steps)
+
+            if plan["save"]:
+                locator = await first_existing_locator(page, ["#saveButton", '[data-testid="save-button"]', 'button[name="saveButton"]'])
+                if not locator:
+                    locator = page.get_by_role("button", name="保存修改")
+                await locator.click()
+                steps.append("已点击保存")
+                await page.wait_for_timeout(300)
+
+            preview_locator = await first_existing_locator(page, ["#jsonPreview", '[data-testid="json-preview"]'])
+            preview = await preview_locator.inner_text(timeout=5000) if preview_locator else ""
+            return {
+                "ok": True,
+                "mode": "universal-form-agent",
+                "summary": "任务执行完成",
+                "plan": plan,
+                "steps": steps,
+                "preview": preview,
+            }
+    except Exception as exc:
+        message = str(exc) or exc.__class__.__name__
+        if "Executable doesn't exist" in message or "browser" in message.lower():
+            message = "浏览器未安装或无法启动，请运行 playwright install chromium。原始错误：" + message
+        return {"ok": False, "mode": "universal-form-agent", "error": message, "debug": {"plan": plan}}
+    finally:
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
 
 
 def sanitize_log(text: str) -> str:
@@ -309,24 +596,72 @@ def run_browser_use_agent_subprocess(command: str, target_url: str, timeout_seco
 async def run_agent(payload: AgentRunRequest) -> dict[str, Any]:
     command = payload.command.strip()
     if not command:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "command 不能为空"})
+        return utf8_json({"ok": False, "error": "command 不能为空"}, 400)
 
     target_url = normalize_target_url(payload.targetUrl)
     if target_url != ALLOWED_TARGET_URL:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "targetUrl 不被允许"})
+        return utf8_json({"ok": False, "error": "targetUrl 不被允许"}, 400)
 
     try:
         print_runtime_config()
         result = await asyncio.to_thread(run_browser_use_agent_subprocess, command, target_url, 180)
         status_code = 200 if result.get("ok") else 504 if "超时" in result.get("error", "") else 500
-        return JSONResponse(status_code=status_code, content=result)
+        return utf8_json(result, status_code)
     except RuntimeError as exc:
-        return JSONResponse(status_code=400, content={"ok": False, "error": str(exc)})
+        return utf8_json({"ok": False, "error": str(exc)}, 400)
     except Exception as exc:
         message = str(exc) or exc.__class__.__name__
         if "playwright" in message.lower() or "browser" in message.lower():
             message = "浏览器未安装或无法启动，请先运行 playwright install chromium。原始错误：" + message
-        return JSONResponse(status_code=500, content={"ok": False, "error": "Agent 执行失败：" + message})
+        return utf8_json({"ok": False, "error": "Agent 执行失败：" + message}, 500)
+
+
+@app.post("/api/universal-agent/run")
+async def run_universal_agent(payload: AgentRunRequest) -> dict[str, Any] | JSONResponse:
+    try:
+        command = payload.command.strip()
+        if not command:
+            return utf8_json({"ok": False, "mode": "universal-form-agent", "error": "command 不能为空"}, 400)
+
+        target_url = normalize_target_url(payload.targetUrl)
+        if target_url != ALLOWED_TARGET_URL:
+            return utf8_json({"ok": False, "mode": "universal-form-agent", "error": "targetUrl 不被允许"}, 400)
+
+        plan, raw_response, parse_error = call_qwen_for_plan(command)
+        if parse_error:
+            return utf8_json(
+                {
+                    "ok": False,
+                    "mode": "universal-form-agent",
+                    "error": parse_error,
+                    "debug": {"rawResponse": raw_response},
+                },
+                200,
+            )
+
+        validated_plan, validation_error = validate_universal_plan(plan or {})
+        if validation_error:
+            return utf8_json(
+                {
+                    "ok": False,
+                    "mode": "universal-form-agent",
+                    "error": validation_error,
+                    "debug": {"plan": plan, "rawResponse": raw_response},
+                },
+                200,
+            )
+
+        result = await execute_plan_with_playwright(validated_plan, target_url)
+        return utf8_json(result, 200)
+    except Exception as exc:
+        return utf8_json(
+            {
+                "ok": False,
+                "mode": "universal-form-agent",
+                "error": "Universal Form Agent 执行失败：" + (str(exc) or exc.__class__.__name__),
+            },
+            200,
+        )
 
 
 def parse_quick_agent_command(command: str) -> dict[str, Any]:
@@ -449,11 +784,11 @@ async def run_quick_agent(command: str, target_url: str) -> dict[str, Any]:
 async def run_quick_agent_api(payload: AgentRunRequest) -> dict[str, Any] | JSONResponse:
     command = payload.command.strip()
     if not command:
-        return JSONResponse(status_code=400, content={"ok": False, "mode": "playwright-quick-agent", "error": "command 不能为空"})
+        return utf8_json({"ok": False, "mode": "playwright-quick-agent", "error": "command 不能为空"}, 400)
 
     target_url = normalize_target_url(payload.targetUrl)
     if target_url != ALLOWED_TARGET_URL:
-        return JSONResponse(status_code=400, content={"ok": False, "mode": "playwright-quick-agent", "error": "targetUrl 不被允许"})
+        return utf8_json({"ok": False, "mode": "playwright-quick-agent", "error": "targetUrl 不被允许"}, 400)
 
     result = await run_quick_agent(command, target_url)
-    return JSONResponse(status_code=200 if result.get("ok") else 500, content=result)
+    return utf8_json(result, 200 if result.get("ok") else 500)
