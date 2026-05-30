@@ -230,7 +230,7 @@ def build_browser_use_task(command: str, target_url: str) -> str:
 - 选择正确的就诊人
 - 修改指定字段
 - 如果用户要求保存，则点击“保存修改”
-- 检查页面下方“当前保存结果 JSON 预览”
+- 检查页面下方“当前保存结果预览”
 - 最后用中文总结是否执行成功
 
 请优先通过页面上的 label、aria-label、id、data-testid 定位元素。
@@ -418,7 +418,8 @@ def build_next_action_prompt(payload: UniversalNextActionRequest) -> list[dict[s
         "如果用户明确说“请选择、选择、打开、切换到”某个就诊人，且 history 中还没有对应 select_patient action，即使当前已经选中该就诊人，也先输出 select_patient。"
         "如果用户输入只是姓名、编号、电话号码等片段，缺少明确动作意图，不要猜测执行，应输出 ask_user 请求确认。"
         "你必须先观察 pageState：如果目标就诊人未选中，先输出 select_patient；如果字段未达到目标值，输出 set_field/set_radio/set_checkbox；"
-        "如果用户要求保存且字段已改好，输出 click_button；如果保存后错误提示符合用户预期或 JSON 预览已符合任务，输出 finish。"
+        "如果用户要求保存且字段已改好，输出 click_button；如果保存后错误提示符合用户预期或保存结果预览已符合任务，输出 finish。"
+        "输出 finish 时，reason 或 value 必须是给用户看的自然语言完成总结，例如：已将 P001 张伟的手机号修改为 13912345678 并保存成功。"
         "如果用户任务缺少必要信息，输出 ask_user；如果页面状态无法支持任务，输出 error。"
         "只输出合法 JSON，不要 markdown，不要解释，不要包裹代码块。"
         "可用 action.type 只有：select_patient、set_field、set_radio、set_checkbox、click_button、read_preview、finish、ask_user、error。"

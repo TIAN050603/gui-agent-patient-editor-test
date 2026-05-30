@@ -818,11 +818,11 @@
 
     <section class="card result-card" aria-labelledby="jsonPreviewTitle">
       <div class="card-header">
-        <h2 id="jsonPreviewTitle">当前保存结果 JSON 预览</h2>
-        <p>每次保存成功后，这里会展示当前就诊人的完整 JSON 数据。</p>
+        <h2 id="jsonPreviewTitle">当前保存结果预览</h2>
+        <p>每次保存成功后，这里会用自然语言展示当前就诊人的关键信息。</p>
       </div>
       <div class="card-body">
-        <pre id="jsonPreview" data-testid="json-preview" aria-label="当前保存结果 JSON 预览">{}</pre>
+        <pre id="jsonPreview" data-testid="json-preview" aria-label="当前保存结果自然语言预览">尚未保存任何修改。</pre>
       </div>
     </section>
   </main>
@@ -1519,7 +1519,7 @@
       renderPatientsTable();
       fields.selectedPatientHint.textContent = "当前就诊人：" + formData.patientId + " - " + formData.name + " - " + formData.department;
       showSuccess("保存成功。");
-      fields.jsonPreview.textContent = JSON.stringify(formData, null, 2);
+      fields.jsonPreview.textContent = formatSavedPatientSummary(formData);
     }
 
     function resetCurrentPatient() {
@@ -1539,7 +1539,7 @@
       fields.patientSelect.value = currentPatientId;
       loadPatientToForm(original);
       renderPatientsTable();
-      fields.jsonPreview.textContent = "{}";
+      fields.jsonPreview.textContent = "已重置为初始数据，尚未保存新的修改。";
       showSuccess("已重置当前就诊人为初始数据。");
     }
 
@@ -1547,8 +1547,28 @@
       clearMessages();
       document.getElementById("patientForm").reset();
       setVisitType("");
-      fields.jsonPreview.textContent = "{}";
+      fields.jsonPreview.textContent = "表单已清空，尚未保存任何修改。";
       fields.selectedPatientHint.textContent = currentPatientId ? "当前就诊人：" + currentPatientId + "，表单已清空。" : "表单已清空。";
+    }
+
+    function formatSavedPatientSummary(patient) {
+      const allergyText = patient.hasAllergy
+        ? "有过敏史，说明为：" + (patient.allergyNote || "未填写")
+        : "无过敏史";
+      return [
+        "保存成功。",
+        "就诊人：" + patient.patientId + " - " + patient.name + "，" + patient.gender + "，" + patient.age + "岁。",
+        "出生日期：" + patient.birthDate + "。",
+        "手机号：" + patient.phone + "。",
+        "证件信息：" + patient.idType + "，证件号码：" + patient.idNumber + "。",
+        "地址：" + patient.address + "。",
+        "紧急联系人：" + patient.emergencyContact + "，电话：" + patient.emergencyPhone + "。",
+        "就诊科室：" + patient.department + "，就诊类型：" + patient.visitType + "，医保类型：" + patient.insuranceType + "。",
+        "过敏史：" + allergyText + "。",
+        "既往病史：" + (patient.medicalHistory || "未填写") + "。",
+        "主诉/症状描述：" + patient.symptoms + "。",
+        "备注：" + (patient.remark || "无") + "。"
+      ].join("\n");
     }
 
     async function executeAgentCommand(commandText) {
@@ -1810,7 +1830,7 @@
           errors: fields.errorMessage.classList.contains("show") ? [fields.errorMessage.textContent] : [],
           success: fields.successMessage.classList.contains("show") ? [fields.successMessage.textContent] : []
         },
-        preview: fields.jsonPreview.textContent || "{}"
+        preview: fields.jsonPreview.textContent || "尚未保存任何修改。"
       };
     }
 
@@ -1864,7 +1884,7 @@
       }
 
       if (action.type === "read_preview") {
-        return { success: true, message: "已读取当前页面 JSON 预览：\n" + (fields.jsonPreview.textContent || "{}") };
+        return { success: true, message: "已读取当前页面保存结果预览：\n" + (fields.jsonPreview.textContent || "尚未保存任何修改。") };
       }
 
       if (action.type === "select_patient") {
@@ -1961,12 +1981,24 @@
         error: "任务停止"
       };
       return [
-        labelMap[action.type] || "任务结束",
-        "最终原因：\n" + (actionResult.message || action.reason || ""),
+        buildAgentFinalAnswer(action, actionResult),
         "最终页面状态摘要：\n" + JSON.stringify(summarizePageState(finalState), null, 2),
         "总 token usage：\n" + JSON.stringify(totalUsage, null, 2),
-        "当前页面 JSON 预览：\n" + finalState.preview
+        "当前页面保存结果预览：\n" + finalState.preview
       ].join("\n\n");
+    }
+
+    function buildAgentFinalAnswer(action, actionResult) {
+      if (action.type === "finish") {
+        return action.value || action.reason || actionResult.message || "任务已完成。";
+      }
+      if (action.type === "ask_user") {
+        return action.value || action.reason || "需要你补充更多信息。";
+      }
+      if (action.type === "error") {
+        return action.value || action.reason || "任务无法继续。";
+      }
+      return actionResult.message || "任务结束。";
     }
 
     function waitForAgentStep(ms) {
@@ -2016,7 +2048,7 @@
       }
 
       const preview = fields.jsonPreview.textContent || "";
-      steps.push("已读取当前页面 JSON 预览。");
+      steps.push("已读取当前页面保存结果预览。");
 
       return {
         success: true,
@@ -2084,7 +2116,7 @@
         sections.push("执行步骤：\n" + data.steps.map(function (step, index) { return index + 1 + ". " + step; }).join("\n"));
       }
       if (data.preview) {
-        sections.push("页面 JSON 预览：\n" + data.preview);
+        sections.push("页面保存结果预览：\n" + data.preview);
       }
       if (data.rawResult) {
         sections.push("原始结果：\n" + data.rawResult);
