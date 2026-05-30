@@ -93,7 +93,7 @@ http://127.0.0.1:8000/api/health
 当前推荐主路径是 `Universal Form Agent`：
 
 ```text
-中文自然语言任务 -> Qwen 解析 JSON plan -> Playwright 操作页面 -> 返回 steps 和 JSON 预览
+中文自然语言任务 -> Qwen 解析 JSON plan -> 当前网页执行 plan -> 返回 steps 和 JSON 预览
 ```
 
 1. 启动后端：
@@ -128,7 +128,7 @@ https://tian050603.github.io/gui-agent-patient-editor-test/
 请选择 P001 张伟，将手机号修改为 13912345678，然后点击保存。
 ```
 
-如果成功，前端对话框会展示 Qwen 解析出的 plan、Playwright 执行 steps 和页面 JSON 预览。
+如果成功，前端对话框会展示 Qwen 解析出的 plan、当前网页执行 steps 和页面 JSON 预览。
 
 如果页面仍然默认显示 `Browser Use Agent`，说明浏览器还在使用旧版 GitHub Pages 缓存。请对前端页面执行强制刷新：
 
@@ -200,10 +200,10 @@ POST {DASHSCOPE_BASE_URL}/chat/completions
 3. 推荐先测 Universal Form Agent：
 
 ```text
-POST http://127.0.0.1:8000/api/universal-agent/run
+POST http://127.0.0.1:8000/api/universal-agent/plan
 ```
 
-这个接口调用 Qwen 解析 plan，但不使用 OpenAI SDK、ChatOpenAI 或 Browser Use。
+这个接口只调用 Qwen 解析 plan，不打开浏览器、不调用 Playwright、不使用 OpenAI SDK、ChatOpenAI 或 Browser Use。旧的 `/api/universal-agent/run` 只保留兼容用途，也会返回同样的 plan。
 
 4. 最后再测 Browser Use Agent：
 
@@ -263,7 +263,7 @@ Browser Use 后端连接成功。
 可用模式：
 
 - `本地规则 Agent`：纯前端规则解析。
-- `Universal Form Agent`：推荐主路径，Qwen 解析 plan，Playwright 执行页面操作。
+- `Universal Form Agent`：推荐主路径，Qwen 解析 plan，当前网页执行页面操作。
 - `Playwright Smoke Test`：只用于调试，不调用 Qwen，保留用于快速排查页面操作问题。
 - `Browser Use Agent`：实验模式，可能受 Browser Use + 模型兼容性影响。
 
@@ -278,7 +278,7 @@ Browser Use 后端连接成功。
 点击“发送任务”后，前端会调用：
 
 ```http
-POST http://127.0.0.1:8000/api/universal-agent/run
+POST http://127.0.0.1:8000/api/universal-agent/plan
 ```
 
 请求体：
@@ -292,7 +292,7 @@ POST http://127.0.0.1:8000/api/universal-agent/run
 
 ## 11. 查看执行结果
 
-Universal Form Agent 会先让 Qwen 输出结构化 JSON plan，再用 Playwright 打开目标页面、选择就诊人、编辑字段、点击保存，并返回中文执行总结。前端会把 plan、steps、preview 和错误信息显示在“自定义任务对话区”的对话历史里。
+Universal Form Agent 会先让 Qwen 输出结构化 JSON plan。后端不会打开新浏览器，也不会修改页面；前端拿到 plan 后会在当前网页选择就诊人、编辑字段、点击保存，并把 plan、steps、preview 和错误信息显示在“自定义任务对话区”的对话历史里。
 
 ## 保留的测试任务
 

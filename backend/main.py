@@ -659,8 +659,7 @@ async def run_agent(payload: AgentRunRequest):
         return utf8_json({"ok": False, "error": "Agent 执行失败：" + message}, 500)
 
 
-@app.post("/api/universal-agent/run", response_model=None)
-async def run_universal_agent(payload: AgentRunRequest):
+def build_universal_plan_response(payload: AgentRunRequest) -> JSONResponse:
     try:
         command = payload.command.strip()
         if not command:
@@ -717,25 +716,43 @@ async def run_universal_agent(payload: AgentRunRequest):
                 200,
             )
 
-        result = await execute_plan_with_playwright(validated_plan, target_url)
-        result["llmUsed"] = True
-        result["provider"] = "qwen"
-        result["model"] = llm_info.get("model")
-        result["usage"] = llm_info.get("usage") or {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-        }
-        return utf8_json(result, 200)
+        return utf8_json(
+            {
+                "ok": True,
+                "mode": "universal-form-agent",
+                "summary": "Qwen 已完成任务解析，请在当前页面执行 plan。",
+                "llmUsed": True,
+                "provider": "qwen",
+                "model": llm_info.get("model"),
+                "usage": llm_info.get("usage") or {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                },
+                "plan": validated_plan,
+                "rawResponse": raw_response,
+            },
+            200,
+        )
     except Exception as exc:
         return utf8_json(
             {
                 "ok": False,
                 "mode": "universal-form-agent",
-                "error": "Universal Form Agent 执行失败：" + (str(exc) or exc.__class__.__name__),
+                "error": "Universal Form Agent 解析失败：" + (str(exc) or exc.__class__.__name__),
             },
             200,
         )
+
+
+@app.post("/api/universal-agent/plan", response_model=None)
+async def plan_universal_agent(payload: AgentRunRequest):
+    return build_universal_plan_response(payload)
+
+
+@app.post("/api/universal-agent/run", response_model=None)
+async def run_universal_agent(payload: AgentRunRequest):
+    return build_universal_plan_response(payload)
 
 
 def parse_quick_agent_command(command: str) -> dict[str, Any]:
