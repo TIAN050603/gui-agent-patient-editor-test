@@ -1675,7 +1675,7 @@
 
           if (["finish", "ask_user", "error"].includes(action.type)) {
             const finalState = collectCurrentPageState();
-            appendChatMessage("agent", formatObserveActFinal(action, actionResult, finalState, totalUsage), action.type === "error" ? "error" : "success");
+            appendChatMessage("agent", formatObserveActFinal(action, actionResult, finalState, totalUsage, history), action.type === "error" ? "error" : "success");
             return;
           }
 
@@ -1974,18 +1974,80 @@
       ].filter(Boolean).join("\n\n");
     }
 
-    function formatObserveActFinal(action, actionResult, finalState, totalUsage) {
-      const labelMap = {
-        finish: "任务完成",
-        ask_user: "需要用户补充",
-        error: "任务停止"
-      };
+    function formatObserveActFinal(action, actionResult, finalState, totalUsage, history) {
       return [
         buildAgentFinalAnswer(action, actionResult),
-        "最终页面状态摘要：\n" + JSON.stringify(summarizePageState(finalState), null, 2),
+        "本次任务结果摘要：\n" + buildTaskFocusedFinalSummary(finalState, history),
         "总 token usage：\n" + JSON.stringify(totalUsage, null, 2),
         "当前页面保存结果预览：\n" + finalState.preview
       ].join("\n\n");
+    }
+
+    function buildTaskFocusedFinalSummary(finalState, history) {
+      const changedFields = collectChangedFieldsFromHistory(history);
+      const lines = [];
+      const selectedPatientAction = history.find(function (item) {
+        return item.action && item.action.type === "select_patient";
+      });
+
+      if (selectedPatientAction) {
+        lines.push("已选择就诊人：" + finalState.selectedPatient.text + "。");
+      }
+
+      if (changedFields.length > 0) {
+        lines.push("本次重点更改：");
+        changedFields.forEach(function (fieldKey) {
+          const fieldState = finalState.fields[fieldKey];
+          if (fieldState) {
+            lines.push("- " + fieldState.label + "：" + formatFieldDisplayValue(fieldKey, fieldState.value));
+          }
+        });
+      } else {
+        lines.push("本次没有修改表单字段。");
+      }
+
+      const unchangedLabels = Object.keys(finalState.fields)
+        .filter(function (fieldKey) {
+          return !changedFields.includes(fieldKey);
+        })
+        .map(function (fieldKey) {
+          return finalState.fields[fieldKey].label;
+        });
+
+      if (unchangedLabels.length > 0) {
+        lines.push("未更改字段：" + unchangedLabels.join("、") + "。");
+      }
+
+      if (finalState.messages.errors.length > 0) {
+        lines.push("页面错误提示：" + finalState.messages.errors.join(" "));
+      }
+      if (finalState.messages.success.length > 0) {
+        lines.push("页面成功提示：" + finalState.messages.success.join(" "));
+      }
+
+      return lines.join("\n");
+    }
+
+    function collectChangedFieldsFromHistory(history) {
+      const changedFields = [];
+      history.forEach(function (item) {
+        const action = item.action || {};
+        if (!["set_field", "set_radio", "set_checkbox"].includes(action.type)) {
+          return;
+        }
+        const fieldKey = action.target && (action.target.field || resolveFieldKeyFromSelector(action.target.selector));
+        if (fieldKey && !changedFields.includes(fieldKey)) {
+          changedFields.push(fieldKey);
+        }
+      });
+      return changedFields;
+    }
+
+    function formatFieldDisplayValue(fieldKey, value) {
+      if (fieldKey === "hasAllergy") {
+        return value ? "有过敏史" : "无过敏史";
+      }
+      return value === "" || value === null || value === undefined ? "空" : String(value);
     }
 
     function buildAgentFinalAnswer(action, actionResult) {
