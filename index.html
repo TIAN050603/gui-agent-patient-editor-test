@@ -769,10 +769,10 @@
                 <div class="form-field">
                   <label for="agentModeSelect">Agent 模式选择</label>
                   <select id="agentModeSelect" name="agentModeSelect" data-testid="agent-mode-select" aria-label="Agent 模式选择">
-                    <option value="universal" selected>Universal Form Agent</option>
-                    <option value="playwright-quick">Playwright Smoke Test（只用于调试）</option>
+                    <option value="universal" selected>Universal Observe-Act Agent（推荐）</option>
                     <option value="browser-use">Browser Use Agent（实验模式，可能受 Browser Use + 模型兼容性影响）</option>
-                    <option value="local">本地规则 Agent</option>
+                    <option value="playwright-quick">Playwright Smoke Test（仅用于测试浏览器自动化链路）</option>
+                    <option value="local">本地规则 Agent（仅用于调试）</option>
                   </select>
                 </div>
                 <div class="form-field">
@@ -1589,43 +1589,80 @@
     }
 
     async function executeUniversalFormCommand(command) {
-      const backendUrl = getBrowserUseBackendUrl();
-      const targetUrl = "https://tian050603.github.io/gui-agent-patient-editor-test/";
+      await runUniversalObserveActAgent(command);
+    }
 
-      appendChatMessage("agent", "已切换到 Universal Form Agent 模式，正在请求 Qwen 解析任务；解析完成后将在当前页面执行表单操作……", "agent");
+    async function runUniversalObserveActAgent(command) {
+      const backendUrl = getBrowserUseBackendUrl();
+      const maxSteps = 10;
+      const history = [];
+      const totalUsage = {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0
+      };
+
+      appendChatMessage("agent", "已切换到 Universal Observe-Act Agent。接下来会循环执行：观察当前页面 -> Qwen 决策下一步 -> 当前页面执行 action。", "agent");
 
       try {
-        const response = await fetch(backendUrl + "/api/universal-agent/plan", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json; charset=utf-8"
-          },
-          body: JSON.stringify({
-            command: command,
-            targetUrl: targetUrl
-          })
-        });
-        const data = await response.json().catch(function () {
-          return {};
-        });
+        for (let stepIndex = 0; stepIndex < maxSteps; stepIndex += 1) {
+          const pageState = collectCurrentPageState();
+          const response = await fetch(backendUrl + "/api/universal-agent/next-action", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json; charset=utf-8"
+            },
+            body: JSON.stringify({
+              command: command,
+              stepIndex: stepIndex,
+              maxSteps: maxSteps,
+              pageState: pageState,
+              history: history
+            })
+          });
+          const data = await response.json().catch(function () {
+            return {};
+          });
 
-        if (!response.ok || !data.ok) {
-          appendChatMessage("agent", formatBackendAgentError("Universal Form Agent", data), "error");
-          return;
+          if (!response.ok || !data.ok) {
+            appendChatMessage("agent", formatBackendAgentError("Universal Observe-Act Agent", data), "error");
+            return;
+          }
+
+          if (data.llmUsed !== true || !data.usage) {
+            appendChatMessage("agent", "Universal Observe-Act Agent 异常：本轮没有确认 Qwen 调用或缺少 token usage。", "error");
+            return;
+          }
+
+          addUsage(totalUsage, data.usage);
+          const action = data.action;
+          appendChatMessage("agent", formatObserveActStep(stepIndex, pageState, data, totalUsage), "plan");
+
+          const actionResult = applyUniversalActionToCurrentPage(action);
+          history.push({
+            step: stepIndex,
+            action: action,
+            result: actionResult.message,
+            pageStateSummary: summarizePageState(pageState)
+          });
+
+          if (!actionResult.success) {
+            appendChatMessage("agent", "当前页面执行 action 失败：\n" + actionResult.message + "\n\n总 token usage：\n" + JSON.stringify(totalUsage, null, 2), "error");
+            return;
+          }
+
+          appendChatMessage("agent", "当前页面执行结果：\n" + actionResult.message, "agent");
+
+          if (["finish", "ask_user", "error"].includes(action.type)) {
+            const finalState = collectCurrentPageState();
+            appendChatMessage("agent", formatObserveActFinal(action, actionResult, finalState, totalUsage), action.type === "error" ? "error" : "success");
+            return;
+          }
+
+          await waitForAgentStep(120);
         }
 
-        const localApplyResult = applyUniversalPlanToCurrentPage(data.plan);
-        if (!localApplyResult.success) {
-          appendChatMessage("agent", "Universal Form Agent 已调用 Qwen 并返回 plan，但当前页面执行失败：\n" + localApplyResult.message, "error");
-          return;
-        }
-
-        appendChatMessage("agent", formatBackendAgentSuccess("Universal Form Agent", {
-          ...data,
-          summary: "Qwen 已调用，当前页面执行完成。",
-          steps: localApplyResult.steps,
-          preview: localApplyResult.preview
-        }), "success");
+        appendChatMessage("agent", "达到最大执行步数，任务未确认完成。\n\n历史记录：\n" + JSON.stringify(history, null, 2) + "\n\n总 token usage：\n" + JSON.stringify(totalUsage, null, 2), "error");
       } catch (error) {
         appendChatMessage("agent", "无法连接本地后端，请确认服务已启动。\n错误信息：" + error.message, "error");
       }
@@ -1635,7 +1672,7 @@
       const backendUrl = getBrowserUseBackendUrl();
       const targetUrl = "https://tian050603.github.io/gui-agent-patient-editor-test/";
 
-      appendChatMessage("agent", "已切换到 Browser Use Agent 实验模式。这个通道当前可能卡在 Browser Use + ChatOpenAI/Qwen 层；推荐主路径是 Universal Form Agent。正在发送请求到本地后端……", "agent");
+      appendChatMessage("agent", "已切换到 Browser Use Agent 实验模式。这个通道当前可能卡在 Browser Use + ChatOpenAI/Qwen 层；推荐主路径是 Universal Observe-Act Agent。正在发送请求到本地后端……", "agent");
 
       try {
         const response = await fetch(backendUrl + "/api/agent/run", {
@@ -1714,6 +1751,228 @@
 
     function getBrowserUseBackendUrl() {
       return (fields.browserUseBackendUrl.value || "http://127.0.0.1:8000").trim().replace(/\/+$/, "");
+    }
+
+    function collectCurrentPageState() {
+      const selectedOption = fields.patientSelect.options[fields.patientSelect.selectedIndex];
+      return {
+        url: window.location.href,
+        title: document.title,
+        selectedPatient: {
+          value: fields.patientSelect.value,
+          text: selectedOption ? selectedOption.textContent : ""
+        },
+        patientOptions: Array.from(fields.patientSelect.options).map(function (option) {
+          return {
+            value: option.value,
+            text: option.textContent
+          };
+        }),
+        fields: {
+          name: buildFieldState("姓名", "text", fields.name, "#nameInput"),
+          gender: buildFieldState("性别", "select", fields.gender, "#genderSelect", getSelectOptions(fields.gender)),
+          age: buildFieldState("年龄", "number", fields.age, "#ageInput"),
+          birthDate: buildFieldState("出生日期", "date", fields.birthDate, "#birthDateInput"),
+          phone: buildFieldState("手机号", "text", fields.phone, "#phoneInput"),
+          idType: buildFieldState("证件类型", "select", fields.idType, "#idTypeSelect", getSelectOptions(fields.idType)),
+          idNumber: buildFieldState("证件号码", "text", fields.idNumber, "#idNumberInput"),
+          address: buildFieldState("地址", "text", fields.address, "#addressInput"),
+          emergencyContact: buildFieldState("紧急联系人", "text", fields.emergencyContact, "#emergencyContactInput"),
+          emergencyPhone: buildFieldState("紧急联系人电话", "text", fields.emergencyPhone, "#emergencyPhoneInput"),
+          department: buildFieldState("就诊科室", "select", fields.department, "#departmentSelect", getSelectOptions(fields.department)),
+          visitType: {
+            label: "就诊类型",
+            type: "radio",
+            value: getSelectedVisitType(),
+            options: Array.from(document.querySelectorAll('input[name="visitType"]')).map(function (radio) {
+              return radio.value;
+            }),
+            selector: 'input[name="visitType"]'
+          },
+          insuranceType: buildFieldState("医保类型", "select", fields.insuranceType, "#insuranceTypeSelect", getSelectOptions(fields.insuranceType)),
+          hasAllergy: {
+            label: "是否有过敏史",
+            type: "checkbox",
+            value: fields.hasAllergy.checked,
+            selector: "#hasAllergyCheckbox"
+          },
+          allergyNote: buildFieldState("过敏史说明", "textarea", fields.allergyNote, "#allergyNoteTextarea"),
+          medicalHistory: buildFieldState("既往病史", "textarea", fields.medicalHistory, "#medicalHistoryTextarea"),
+          symptoms: buildFieldState("主诉/症状描述", "textarea", fields.symptoms, "#symptomsTextarea"),
+          remark: buildFieldState("备注", "textarea", fields.remark, "#remarkTextarea")
+        },
+        buttons: [
+          { label: "保存修改", selector: "#saveButton" },
+          { label: "重置当前就诊人", selector: "#resetButton" },
+          { label: "清空表单", selector: "#clearButton" }
+        ],
+        messages: {
+          errors: fields.errorMessage.classList.contains("show") ? [fields.errorMessage.textContent] : [],
+          success: fields.successMessage.classList.contains("show") ? [fields.successMessage.textContent] : []
+        },
+        preview: fields.jsonPreview.textContent || "{}"
+      };
+    }
+
+    function buildFieldState(label, type, element, selector, options) {
+      const state = {
+        label: label,
+        type: type,
+        value: element.value,
+        selector: selector
+      };
+      if (options) {
+        state.options = options;
+      }
+      return state;
+    }
+
+    function getSelectOptions(selectElement) {
+      return Array.from(selectElement.options).map(function (option) {
+        return option.value;
+      }).filter(Boolean);
+    }
+
+    function summarizePageState(pageState) {
+      return {
+        selectedPatient: pageState.selectedPatient,
+        phone: pageState.fields.phone.value,
+        department: pageState.fields.department.value,
+        visitType: pageState.fields.visitType.value,
+        symptoms: pageState.fields.symptoms.value,
+        errors: pageState.messages.errors,
+        success: pageState.messages.success,
+        preview: pageState.preview
+      };
+    }
+
+    function applyUniversalActionToCurrentPage(action) {
+      if (!action || !action.type) {
+        return { success: false, message: "LLM 没有返回可执行 action。" };
+      }
+
+      if (action.type === "finish") {
+        return { success: true, message: action.reason || "LLM 判断任务已完成。" };
+      }
+
+      if (action.type === "ask_user") {
+        return { success: true, message: String(action.value || action.reason || "需要用户补充信息。") };
+      }
+
+      if (action.type === "error") {
+        return { success: true, message: String(action.value || action.reason || "LLM 判断任务无法继续。") };
+      }
+
+      if (action.type === "read_preview") {
+        return { success: true, message: "已读取当前页面 JSON 预览：\n" + (fields.jsonPreview.textContent || "{}") };
+      }
+
+      if (action.type === "select_patient") {
+        const patientId = String(action.value || "").toUpperCase();
+        const optionExists = Array.from(fields.patientSelect.options).some(function (option) {
+          return option.value === patientId;
+        });
+        if (!patientId || !optionExists) {
+          return { success: false, message: "无法选择就诊人：" + patientId };
+        }
+        fields.patientSelect.value = patientId;
+        fields.patientSelect.dispatchEvent(new Event("input", { bubbles: true }));
+        fields.patientSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        return { success: true, message: "已在当前页面选择就诊人 " + patientId + "。" };
+      }
+
+      if (["set_field", "set_radio", "set_checkbox"].includes(action.type)) {
+        const fieldKey = action.target && (action.target.field || resolveFieldKeyFromSelector(action.target.selector));
+        if (!fieldKey) {
+          return { success: false, message: "字段 action 缺少 target.field，且无法从 selector 映射字段。" };
+        }
+        const result = updateFormField(fieldKey, action.value);
+        if (!result.success) {
+          return { success: false, message: result.message };
+        }
+        return { success: true, message: "已在当前页面修改" + getFieldDisplayName(fieldKey) + "为 " + result.displayValue + "。" };
+      }
+
+      if (action.type === "click_button") {
+        const selector = action.target && action.target.selector ? action.target.selector : "";
+        const button = selector ? document.querySelector(selector) : null;
+        if (!button) {
+          return { success: false, message: "未找到按钮：" + (selector || JSON.stringify(action.target)) };
+        }
+        button.click();
+        const parts = ["已点击当前页面按钮：" + ((action.target && action.target.label) || selector) + "。"];
+        if (fields.errorMessage.classList.contains("show")) {
+          parts.push("页面错误提示：" + fields.errorMessage.textContent);
+        }
+        if (fields.successMessage.classList.contains("show")) {
+          parts.push("页面成功提示：" + fields.successMessage.textContent);
+        }
+        return { success: true, message: parts.join("\n") };
+      }
+
+      return { success: false, message: "不支持的 action.type：" + action.type };
+    }
+
+    function resolveFieldKeyFromSelector(selector) {
+      const selectorMap = {
+        "#nameInput": "name",
+        "#genderSelect": "gender",
+        "#ageInput": "age",
+        "#birthDateInput": "birthDate",
+        "#phoneInput": "phone",
+        "#idTypeSelect": "idType",
+        "#idNumberInput": "idNumber",
+        "#addressInput": "address",
+        "#emergencyContactInput": "emergencyContact",
+        "#emergencyPhoneInput": "emergencyPhone",
+        "#departmentSelect": "department",
+        "#insuranceTypeSelect": "insuranceType",
+        "#hasAllergyCheckbox": "hasAllergy",
+        "#allergyNoteTextarea": "allergyNote",
+        "#medicalHistoryTextarea": "medicalHistory",
+        "#symptomsTextarea": "symptoms",
+        "#remarkTextarea": "remark"
+      };
+      return selectorMap[selector] || "";
+    }
+
+    function addUsage(totalUsage, usage) {
+      totalUsage.prompt_tokens += Number(usage.prompt_tokens || 0);
+      totalUsage.completion_tokens += Number(usage.completion_tokens || 0);
+      totalUsage.total_tokens += Number(usage.total_tokens || 0);
+    }
+
+    function formatObserveActStep(stepIndex, pageState, data, totalUsage) {
+      return [
+        "第 " + (stepIndex + 1) + " 轮 Observe-Act",
+        "页面状态摘要：\n" + JSON.stringify(summarizePageState(pageState), null, 2),
+        "Qwen 已调用：llmUsed=" + data.llmUsed + "，provider=" + data.provider + "，model=" + data.model,
+        "本轮 token usage：\n" + JSON.stringify(data.usage, null, 2),
+        "累计 token usage：\n" + JSON.stringify(totalUsage, null, 2),
+        "LLM action：\n" + JSON.stringify(data.action, null, 2),
+        data.action && data.action.thought ? "thought：\n" + data.action.thought : ""
+      ].filter(Boolean).join("\n\n");
+    }
+
+    function formatObserveActFinal(action, actionResult, finalState, totalUsage) {
+      const labelMap = {
+        finish: "任务完成",
+        ask_user: "需要用户补充",
+        error: "任务停止"
+      };
+      return [
+        labelMap[action.type] || "任务结束",
+        "最终原因：\n" + (actionResult.message || action.reason || ""),
+        "最终页面状态摘要：\n" + JSON.stringify(summarizePageState(finalState), null, 2),
+        "总 token usage：\n" + JSON.stringify(totalUsage, null, 2),
+        "当前页面 JSON 预览：\n" + finalState.preview
+      ].join("\n\n");
+    }
+
+    function waitForAgentStep(ms) {
+      return new Promise(function (resolve) {
+        window.setTimeout(resolve, ms);
+      });
     }
 
     function applyUniversalPlanToCurrentPage(plan) {

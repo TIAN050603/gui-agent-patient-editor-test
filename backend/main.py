@@ -43,6 +43,26 @@ FIELD_SCHEMA: dict[str, dict[str, Any]] = {
     "remark": {"label": "备注", "selectors": ["#remarkTextarea", '[data-testid="remark-textarea"]', 'textarea[name="remark"]', '[aria-label="备注"]'], "kind": "text"},
 }
 
+SELECTOR_TO_FIELD = {
+    "#nameInput": "name",
+    "#genderSelect": "gender",
+    "#ageInput": "age",
+    "#birthDateInput": "birthDate",
+    "#phoneInput": "phone",
+    "#idTypeSelect": "idType",
+    "#idNumberInput": "idNumber",
+    "#addressInput": "address",
+    "#emergencyContactInput": "emergencyContact",
+    "#emergencyPhoneInput": "emergencyPhone",
+    "#departmentSelect": "department",
+    "#insuranceTypeSelect": "insuranceType",
+    "#hasAllergyCheckbox": "hasAllergy",
+    "#allergyNoteTextarea": "allergyNote",
+    "#medicalHistoryTextarea": "medicalHistory",
+    "#symptomsTextarea": "symptoms",
+    "#remarkTextarea": "remark",
+}
+
 PATIENT_NAME_TO_ID = {
     "张伟": "P001",
     "李娜": "P002",
@@ -73,6 +93,14 @@ app.add_middleware(
 class AgentRunRequest(BaseModel):
     command: str = Field(..., description="用户输入的自然语言任务")
     targetUrl: str = Field(..., description="允许 Browser Use 访问的目标页面 URL")
+
+
+class UniversalNextActionRequest(BaseModel):
+    command: str = Field(..., description="用户原始中文自然语言任务")
+    stepIndex: int = Field(0, description="当前 observe-act 步数，从 0 开始")
+    maxSteps: int = Field(10, description="最大执行步数")
+    pageState: dict[str, Any] = Field(default_factory=dict, description="前端采集的当前页面结构化状态")
+    history: list[dict[str, Any]] = Field(default_factory=list, description="之前 action 与执行结果历史")
 
 
 class Utf8JSONResponse(JSONResponse):
@@ -369,6 +397,165 @@ def call_qwen_for_plan(command: str) -> tuple[dict[str, Any] | None, str, str | 
         return json.loads(raw_content), raw_content, None, llm_info
     except json.JSONDecodeError:
         return None, raw_content, "Qwen 没有返回合法 JSON", llm_info
+
+
+def build_next_action_prompt(payload: UniversalNextActionRequest) -> list[dict[str, str]]:
+    action_schema = {
+        "thought": "简短说明为什么下一步这样做",
+        "type": "select_patient | set_field | set_radio | set_checkbox | click_button | read_preview | finish | ask_user | error",
+        "target": {
+            "field": "phone",
+            "selector": "#phoneInput",
+            "label": "手机号",
+        },
+        "value": "13912345678",
+        "reason": "当前任务要求修改 P001 的手机号",
+        "done": False,
+    }
+    system_prompt = (
+        "你是一个当前网页表单 GUI Agent 的决策器。你不会直接操作浏览器，只根据用户任务、当前页面状态 pageState 和历史 history，输出下一步 action JSON。"
+        "必须逐步执行，每轮只输出一个下一步 action，不要一次性输出完整计划。"
+        "如果用户明确说“请选择、选择、打开、切换到”某个就诊人，且 history 中还没有对应 select_patient action，即使当前已经选中该就诊人，也先输出 select_patient。"
+        "如果用户输入只是姓名、编号、电话号码等片段，缺少明确动作意图，不要猜测执行，应输出 ask_user 请求确认。"
+        "你必须先观察 pageState：如果目标就诊人未选中，先输出 select_patient；如果字段未达到目标值，输出 set_field/set_radio/set_checkbox；"
+        "如果用户要求保存且字段已改好，输出 click_button；如果保存后错误提示符合用户预期或 JSON 预览已符合任务，输出 finish。"
+        "如果用户任务缺少必要信息，输出 ask_user；如果页面状态无法支持任务，输出 error。"
+        "只输出合法 JSON，不要 markdown，不要解释，不要包裹代码块。"
+        "可用 action.type 只有：select_patient、set_field、set_radio、set_checkbox、click_button、read_preview、finish、ask_user、error。"
+        "可用字段 key 只有：name、gender、age、birthDate、phone、idType、idNumber、address、emergencyContact、emergencyPhone、department、visitType、insuranceType、hasAllergy、allergyNote、medicalHistory、symptoms、remark。"
+        "选择就诊人时 value 使用 patientOptions 中的 value，例如 P001。"
+        "修改 select/radio 字段时 value 必须使用 pageState.fields[field].options 中存在的值。"
+        "点击保存按钮时 target.selector 使用 #saveButton。"
+        "手机号格式错误测试中，如果保存后页面 errors 包含手机号格式错误，应视为观察目标达成并 finish。"
+        "输出 JSON schema 如下："
+        + json.dumps(action_schema, ensure_ascii=False)
+    )
+    user_prompt = json.dumps(
+        {
+            "command": payload.command,
+            "stepIndex": payload.stepIndex,
+            "maxSteps": payload.maxSteps,
+            "pageState": payload.pageState,
+            "history": payload.history,
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+
+def call_qwen_for_next_action(payload: UniversalNextActionRequest) -> tuple[dict[str, Any] | None, str, str | None, dict[str, Any]]:
+    llm_info = {
+        "llmUsed": False,
+        "provider": "qwen",
+        "model": get_dashscope_model(),
+        "usage": None,
+    }
+    api_key = os.getenv("DASHSCOPE_API_KEY", "").strip()
+    if not api_key:
+        return None, "", "未配置 DASHSCOPE_API_KEY", llm_info
+
+    model = get_dashscope_model()
+    url = get_dashscope_base_url().rstrip("/") + "/chat/completions"
+    try:
+        response = requests.post(
+            url,
+            headers={
+                "Authorization": "Bearer " + api_key,
+                "Content-Type": "application/json; charset=utf-8",
+            },
+            json={
+                "model": model,
+                "messages": build_next_action_prompt(payload),
+                "temperature": 0,
+            },
+            timeout=30,
+        )
+        llm_info["llmUsed"] = True
+    except requests.Timeout:
+        return None, "", "Qwen 决策下一步 action 超时", llm_info
+    except Exception as exc:
+        return None, "", "Qwen 决策下一步 action 失败：" + str(exc), llm_info
+
+    raw_body = response.text
+    if response.status_code >= 400:
+        return None, raw_body, "Qwen 决策下一步 action 失败：HTTP " + str(response.status_code), llm_info
+
+    try:
+        data = response.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        usage = data.get("usage") or {}
+        llm_info["usage"] = {
+            "prompt_tokens": usage.get("prompt_tokens", 0),
+            "completion_tokens": usage.get("completion_tokens", 0),
+            "total_tokens": usage.get("total_tokens", 0),
+        }
+    except Exception as exc:
+        return None, raw_body, "Qwen 返回不是合法响应 JSON：" + str(exc), llm_info
+
+    raw_content = (content or "").strip()
+    try:
+        return json.loads(raw_content), raw_content, None, llm_info
+    except json.JSONDecodeError:
+        return None, raw_content, "Qwen 没有返回合法 action JSON", llm_info
+
+
+def validate_universal_action(action: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    if not isinstance(action, dict):
+        return None, "Qwen action 不是 JSON object"
+
+    allowed_types = {
+        "select_patient",
+        "set_field",
+        "set_radio",
+        "set_checkbox",
+        "click_button",
+        "read_preview",
+        "finish",
+        "ask_user",
+        "error",
+    }
+    action_type = action.get("type")
+    if action_type not in allowed_types:
+        return None, "不支持的 action.type：" + str(action_type)
+
+    target = action.get("target")
+    if target is not None and not isinstance(target, dict):
+        return None, "target 必须是 object 或 null"
+
+    if action_type in {"select_patient", "set_field", "set_radio", "set_checkbox", "click_button"}:
+        if not isinstance(target, dict):
+            return None, action_type + " 必须提供 target"
+        if not target.get("selector") and not target.get("field"):
+            return None, action_type + " 的 target 至少需要 selector 或 field"
+
+    if action_type in {"set_field", "set_radio", "set_checkbox"}:
+        field = target.get("field") if isinstance(target, dict) else ""
+        if not field and isinstance(target, dict):
+            field = SELECTOR_TO_FIELD.get(str(target.get("selector") or ""), "")
+            if field:
+                target["field"] = field
+        if field not in FIELD_SCHEMA:
+            return None, "不支持的字段：" + str(field)
+        config = FIELD_SCHEMA[field]
+        value = action.get("value")
+        if "options" in config and value not in config["options"]:
+            return None, config["label"] + " 的字段值不在可选范围内：" + str(value)
+        if config["kind"] == "checkbox" and not isinstance(value, bool):
+            return None, config["label"] + " 必须是 boolean"
+
+    normalized_action = {
+        "thought": str(action.get("thought") or ""),
+        "type": action_type,
+        "target": target,
+        "value": action.get("value"),
+        "reason": str(action.get("reason") or ""),
+        "done": bool(action.get("done")),
+    }
+    return normalized_action, None
 
 
 def validate_universal_plan(plan: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
@@ -748,6 +935,90 @@ def build_universal_plan_response(payload: AgentRunRequest) -> JSONResponse:
 @app.post("/api/universal-agent/plan", response_model=None)
 async def plan_universal_agent(payload: AgentRunRequest):
     return build_universal_plan_response(payload)
+
+
+@app.post("/api/universal-agent/next-action", response_model=None)
+async def next_universal_agent_action(payload: UniversalNextActionRequest):
+    try:
+        command = payload.command.strip()
+        if not command:
+            return utf8_json({"ok": False, "mode": "universal-observe-act-agent", "error": "command 不能为空"}, 400)
+        if not isinstance(payload.pageState, dict) or not payload.pageState:
+            return utf8_json({"ok": False, "mode": "universal-observe-act-agent", "error": "pageState 不能为空"}, 400)
+
+        action, raw_response, parse_error, llm_info = call_qwen_for_next_action(payload)
+        if not llm_info.get("llmUsed"):
+            return utf8_json(
+                {
+                    "ok": False,
+                    "mode": "universal-observe-act-agent",
+                    "llmUsed": False,
+                    "provider": "qwen",
+                    "model": llm_info.get("model"),
+                    "error": "Universal Observe-Act Agent 必须调用 LLM，但本次没有完成 LLM 调用",
+                    "debug": {"reason": parse_error},
+                },
+                200,
+            )
+
+        if parse_error:
+            return utf8_json(
+                {
+                    "ok": False,
+                    "mode": "universal-observe-act-agent",
+                    "llmUsed": True,
+                    "provider": "qwen",
+                    "model": llm_info.get("model"),
+                    "usage": llm_info.get("usage"),
+                    "error": parse_error,
+                    "rawResponse": raw_response,
+                    "debug": {"rawResponse": raw_response},
+                },
+                200,
+            )
+
+        validated_action, validation_error = validate_universal_action(action or {})
+        if validation_error:
+            return utf8_json(
+                {
+                    "ok": False,
+                    "mode": "universal-observe-act-agent",
+                    "llmUsed": True,
+                    "provider": "qwen",
+                    "model": llm_info.get("model"),
+                    "usage": llm_info.get("usage"),
+                    "error": validation_error,
+                    "debug": {"action": action, "rawResponse": raw_response},
+                },
+                200,
+            )
+
+        return utf8_json(
+            {
+                "ok": True,
+                "mode": "universal-observe-act-agent",
+                "llmUsed": True,
+                "provider": "qwen",
+                "model": llm_info.get("model"),
+                "usage": llm_info.get("usage") or {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                },
+                "action": validated_action,
+                "rawResponse": raw_response,
+            },
+            200,
+        )
+    except Exception as exc:
+        return utf8_json(
+            {
+                "ok": False,
+                "mode": "universal-observe-act-agent",
+                "error": "Universal Observe-Act Agent 决策失败：" + (str(exc) or exc.__class__.__name__),
+            },
+            200,
+        )
 
 
 @app.post("/api/universal-agent/run", response_model=None)
